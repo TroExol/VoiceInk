@@ -126,9 +126,15 @@ class AudioTranscriptionService: ObservableObject {
                     await MainActor.run {
                         isTranscribing = false
                     }
-                    
+
                     return newTranscription
                 } catch {
+                    if error is CancellationError {
+                        await MainActor.run {
+                            isTranscribing = false
+                        }
+                        throw error
+                    }
                     let newTranscription = Transcription(
                         text: text,
                         duration: duration,
@@ -174,6 +180,10 @@ class AudioTranscriptionService: ObservableObject {
                 return newTranscription
             }
         } catch {
+            if error is CancellationError {
+                isTranscribing = false
+                throw error
+            }
             logger.error("❌ Transcription failed: \(error.localizedDescription)")
             currentError = .transcriptionFailed
             isTranscribing = false

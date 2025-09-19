@@ -2,6 +2,7 @@ import Foundation
 import SwiftData
 import AppKit
 import os
+import CryptoKit
 
 enum EnhancementPrompt {
     case transcriptionEnhancement
@@ -9,6 +10,52 @@ enum EnhancementPrompt {
 }
 
 class AIEnhancementService: ObservableObject {
+    private struct EnhancementResult: Sendable {
+        let text: String
+        let duration: TimeInterval
+        let promptName: String?
+    }
+    
+    private actor EnhancementRequestCoordinator {
+        struct Group {
+            var tasks: [UUID: Task<EnhancementResult, Error>] = [:]
+        }
+        
+        private var groups: [String: Group] = [:]
+        
+        func prepare(signature: String, requestID: UUID) {
+            if groups[signature] == nil {
+                groups[signature] = Group()
+            }
+        }
+        
+        func attach(signature: String, requestID: UUID, task: Task<EnhancementResult, Error>) {
+            guard var group = groups[signature] else {
+                task.cancel()
+                return
+            }
+            group.tasks[requestID] = task
+            groups[signature] = group
+        }
+        
+        func markSuccess(signature: String, requestID: UUID) -> (shouldDeliver: Bool, tasksToCancel: [Task<EnhancementResult, Error>]) {
+            guard let group = groups.removeValue(forKey: signature) else {
+                return (false, [])
+            }
+            let tasksToCancel = group.tasks.compactMap { $0.key == requestID ? nil : $0.value }
+            return (true, tasksToCancel)
+        }
+        
+        func markFailure(signature: String, requestID: UUID) {
+            guard var group = groups[signature] else { return }
+            group.tasks.removeValue(forKey: requestID)
+            if group.tasks.isEmpty {
+                groups.removeValue(forKey: signature)
+            } else {
+                groups[signature] = group
+            }
+        }
+    }
     private let logger = Logger(subsystem: "com.voiceink.enhancement", category: "AIEnhancementService")
 
     @Published var isEnhancementEnabled: Bool {
@@ -69,6 +116,7 @@ class AIEnhancementService: ObservableObject {
     private let rateLimitInterval: TimeInterval = 1.0
     private var lastRequestTime: Date?
     private let modelContext: ModelContext
+    private let requestCoordinator = EnhancementRequestCoordinator()
 
     init(aiService: AIService = AIService(), modelContext: ModelContext) {
         self.aiService = aiService
@@ -196,7 +244,7 @@ class AIEnhancementService: ObservableObject {
         return systemMessage
     }
 
-    private func makeRequest(text: String, mode: EnhancementPrompt) async throws -> String {
+    private func makeRequest(text: String, mode: EnhancementPrompt, timeout: TimeInterval) async throws -> String {
         guard isConfigured else {
             throw EnhancementError.notConfigured
         }
@@ -248,7 +296,7 @@ class AIEnhancementService: ObservableObject {
             request.addValue("application/json", forHTTPHeaderField: "Content-Type")
             request.addValue(aiService.apiKey, forHTTPHeaderField: "x-api-key")
             request.addValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-            request.timeoutInterval = baseTimeout
+            request.timeoutInterval = timeout
             request.httpBody = try? JSONSerialization.data(withJSONObject: requestBody)
 
             do {
@@ -291,7 +339,7 @@ class AIEnhancementService: ObservableObject {
             request.httpMethod = "POST"
             request.addValue("application/json", forHTTPHeaderField: "Content-Type")
             request.addValue("Bearer \(aiService.apiKey)", forHTTPHeaderField: "Authorization")
-            request.timeoutInterval = baseTimeout
+            request.timeoutInterval = timeout
 
             let messages: [[String: Any]] = [
                 ["role": "system", "content": systemMessage],
@@ -344,64 +392,105 @@ class AIEnhancementService: ObservableObject {
         }
     }
 
-    private func makeRequestWithRetry(text: String, mode: EnhancementPrompt, maxRetries: Int = 3, initialDelay: TimeInterval = 1.0) async throws -> String {
-        var retries = 0
-        var currentDelay = initialDelay
+    private func makeRequestWithRetry(text: String, mode: EnhancementPrompt) async throws -> String {
+        let maxAttempts = 3
+        let launchInterval = baseTimeout
 
-        while retries < maxRetries {
-            do {
-                return try await makeRequest(text: text, mode: mode)
-            } catch let error as EnhancementError {
-                switch error {
-                case .networkError, .serverError, .rateLimitExceeded:
-                    retries += 1
-                    if retries < maxRetries {
-                        logger.warning("Request failed, retrying in \(currentDelay)s... (Attempt \(retries)/\(maxRetries))")
-                        try await Task.sleep(nanoseconds: UInt64(currentDelay * 1_000_000_000))
-                        currentDelay *= 2 // Exponential backoff
-                    } else {
-                        logger.error("Request failed after \(maxRetries) retries.")
-                        throw error
+        try Task.checkCancellation()
+
+        return try await withThrowingTaskGroup(of: (Int, Result<String, Error>).self, returning: String.self) { group in
+            for attemptIndex in 0..<maxAttempts {
+                let delay = TimeInterval(attemptIndex) * launchInterval
+                let attemptTimeout = launchInterval * TimeInterval(maxAttempts - attemptIndex)
+
+                group.addTask { [weak self, delay, attemptTimeout] in
+                    do {
+                        if delay > 0 {
+                            try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                        }
+
+                        try Task.checkCancellation()
+
+                        guard let self else {
+                            throw CancellationError()
+                        }
+
+                        let value = try await self.makeRequest(text: text, mode: mode, timeout: attemptTimeout)
+                        return (attemptIndex, .success(value))
+                    } catch {
+                        return (attemptIndex, .failure(error))
                     }
-                default:
-                    throw error
-                }
-            } catch {
-                // For other errors, check if it's a network-related URLError
-                let nsError = error as NSError
-                if nsError.domain == NSURLErrorDomain && [NSURLErrorNotConnectedToInternet, NSURLErrorTimedOut, NSURLErrorNetworkConnectionLost].contains(nsError.code) {
-                    retries += 1
-                    if retries < maxRetries {
-                        logger.warning("Request failed with network error, retrying in \(currentDelay)s... (Attempt \(retries)/\(maxRetries))")
-                        try await Task.sleep(nanoseconds: UInt64(currentDelay * 1_000_000_000))
-                        currentDelay *= 2 // Exponential backoff
-                    } else {
-                        logger.error("Request failed after \(maxRetries) retries with network error.")
-                        throw EnhancementError.networkError
-                    }
-                } else {
-                    throw error
                 }
             }
-        }
 
-        // This part should ideally not be reached, but as a fallback:
-        throw EnhancementError.enhancementFailed
+            var lastError: Error?
+
+            while let result = try await group.next() {
+                switch result.1 {
+                case .success(let value):
+                    group.cancelAll()
+                    return value
+                case .failure(let error):
+                    if error is CancellationError {
+                        group.cancelAll()
+                        throw error
+                    }
+
+                    lastError = error
+                    if result.0 == maxAttempts - 1 {
+                        group.cancelAll()
+                        throw lastError ?? EnhancementError.enhancementFailed
+                    }
+                }
+            }
+
+            throw lastError ?? EnhancementError.enhancementFailed
+        }
     }
 
     func enhance(_ text: String) async throws -> (String, TimeInterval, String?) {
+        let signature = buildSignature(for: text)
+        let requestID = UUID()
+        await requestCoordinator.prepare(signature: signature, requestID: requestID)
+        let task = Task<EnhancementResult, Error> { [weak self] in
+            guard let self else { throw CancellationError() }
+            return try await self.performEnhancement(text)
+        }
+        await requestCoordinator.attach(signature: signature, requestID: requestID, task: task)
+
+        do {
+            let result = try await task.value
+            let (shouldDeliver, tasksToCancel) = await requestCoordinator.markSuccess(signature: signature, requestID: requestID)
+            for otherTask in tasksToCancel {
+                otherTask.cancel()
+            }
+            guard shouldDeliver else {
+                task.cancel()
+                throw CancellationError()
+            }
+            return (result.text, result.duration, result.promptName)
+        } catch {
+            await requestCoordinator.markFailure(signature: signature, requestID: requestID)
+            throw error
+        }
+    }
+
+    private func performEnhancement(_ text: String) async throws -> EnhancementResult {
         let startTime = Date()
         let enhancementPrompt: EnhancementPrompt = .transcriptionEnhancement
         let promptName = activePrompt?.title
+        let result = try await makeRequestWithRetry(text: text, mode: enhancementPrompt)
+        let duration = Date().timeIntervalSince(startTime)
+        return EnhancementResult(text: result, duration: duration, promptName: promptName)
+    }
 
-        do {
-            let result = try await makeRequestWithRetry(text: text, mode: enhancementPrompt)
-            let endTime = Date()
-            let duration = endTime.timeIntervalSince(startTime)
-            return (result, duration, promptName)
-        } catch {
-            throw error
-        }
+    private func buildSignature(for text: String) -> String {
+        let promptID = activePrompt?.id.uuidString ?? "none"
+        let provider = aiService.selectedProvider.rawValue
+        let model = aiService.currentModel
+        let payload = [text, promptID, provider, model].joined(separator: "|::|")
+        let hash = SHA256.hash(data: Data(payload.utf8))
+        return hash.map { String(format: "%02x", $0) }.joined()
     }
 
     func captureScreenContext() async {

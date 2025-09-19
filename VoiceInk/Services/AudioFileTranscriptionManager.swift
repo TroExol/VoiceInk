@@ -149,6 +149,9 @@ class AudioTranscriptionManager: ObservableObject {
                         NotificationCenter.default.post(name: .transcriptionCreated, object: transcription)
                         currentTranscription = transcription
                     } catch {
+                        if error is CancellationError {
+                            throw error
+                        }
                         logger.error("Enhancement failed: \(error.localizedDescription)")
                         let transcription = Transcription(
                             text: text,
@@ -183,6 +186,10 @@ class AudioTranscriptionManager: ObservableObject {
                 await finishProcessing()
                 
             } catch {
+                if error is CancellationError {
+                    await finishProcessing()
+                    return
+                }
                 await handleError(error)
             }
         }
@@ -199,6 +206,12 @@ class AudioTranscriptionManager: ObservableObject {
     }
     
     private func handleError(_ error: Error) {
+        if error is CancellationError {
+            isProcessing = false
+            processingPhase = .idle
+            currentTask = nil
+            return
+        }
         logger.error("Transcription error: \(error.localizedDescription)")
         errorMessage = error.localizedDescription
         isProcessing = false

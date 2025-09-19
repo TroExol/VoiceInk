@@ -427,6 +427,12 @@ struct AudioPlayerView: View {
                     }
                 }
             } catch {
+                if error is CancellationError {
+                    await MainActor.run {
+                        isRetranscribing = false
+                    }
+                    return
+                }
                 await MainActor.run {
                     isRetranscribing = false
                     errorMessage = error.localizedDescription

@@ -133,6 +133,9 @@ class LastTranscriptionService: ObservableObject {
                     type: .success
                 )
             } catch {
+                if error is CancellationError {
+                    return
+                }
                 NotificationManager.shared.showNotification(
                     title: "Retry failed: \(error.localizedDescription)",
                     type: .error
