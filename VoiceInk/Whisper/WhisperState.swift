@@ -84,7 +84,6 @@ class WhisperState: NSObject, ObservableObject {
     let recordingsDirectory: URL
     let parakeetModelsDirectory: URL
     let enhancementService: AIEnhancementService?
-    var licenseViewModel: LicenseViewModel
     let logger = Logger(subsystem: "com.prakashjoshipax.voiceink", category: "WhisperState")
     var notchWindowManager: NotchWindowManager?
     var miniWindowManager: MiniWindowManager?
@@ -103,8 +102,6 @@ class WhisperState: NSObject, ObservableObject {
         self.parakeetModelsDirectory = appSupportDirectory.appendingPathComponent("ParakeetModels")
         
         self.enhancementService = enhancementService
-        self.licenseViewModel = LicenseViewModel()
-        
         super.init()
         
         // Configure the session manager
@@ -355,13 +352,6 @@ class WhisperState: NSObject, ObservableObject {
                 NotificationCenter.default.post(name: .transcriptionCreated, object: newTranscription)
             }
             
-            if case .trialExpired = licenseViewModel.licenseState {
-                text = """
-                    Your trial has expired. Upgrade to VoiceInk Pro at tryvoiceink.com/buy
-                    \n\(text)
-                    """
-            }
-
             let shouldAddSpace = UserDefaults.standard.object(forKey: "AppendTrailingSpace") as? Bool ?? true
             if shouldAddSpace {
                 text += " "
@@ -442,4 +432,3 @@ class WhisperState: NSObject, ObservableObject {
         await dismissMiniRecorder()
     }
 }
-
