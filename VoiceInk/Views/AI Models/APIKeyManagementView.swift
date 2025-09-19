@@ -11,6 +11,7 @@ struct APIKeyManagementView: View {
     @State private var selectedOllamaModel: String = UserDefaults.standard.string(forKey: "ollamaSelectedModel") ?? "mistral"
     @State private var isCheckingOllama = false
     @State private var isEditingURL = false
+    @State private var isEditingCustomProvider = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -52,6 +53,12 @@ struct APIKeyManagementView: View {
             .onChange(of: aiService.selectedProvider) { oldValue, newValue in
                 if aiService.selectedProvider == .ollama {
                     checkOllamaConnection()
+                }
+                if newValue == .custom {
+                    isEditingCustomProvider = !aiService.isAPIKeyValid
+                    apiKey = ""
+                } else {
+                    isEditingCustomProvider = false
                 }
             }
             
@@ -234,9 +241,19 @@ struct APIKeyManagementView: View {
             } else if aiService.selectedProvider == .custom {
                 VStack(alignment: .leading, spacing: 16) {
                     // Header
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Custom Provider Configuration")
-                            .font(.headline)
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Custom Provider Configuration")
+                                .font(.headline)
+                            Spacer()
+                            if aiService.isAPIKeyValid {
+                                Button(isEditingCustomProvider ? "Done" : "Edit") {
+                                    isEditingCustomProvider.toggle()
+                                }
+                                .buttonStyle(.borderless)
+                                .controlSize(.small)
+                            }
+                        }
                         HStack(spacing: 4) {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundColor(.orange)
@@ -249,83 +266,66 @@ struct APIKeyManagementView: View {
                     
                     // Configuration Fields
                     VStack(alignment: .leading, spacing: 8) {
-                        if !aiService.isAPIKeyValid {
-                            TextField("API Endpoint URL (e.g., https://api.example.com/v1/chat/completions)", text: $aiService.customBaseURL)
+                        TextField("API Endpoint URL (e.g., https://api.example.com/v1/chat/completions)", text: $aiService.customBaseURL)
+                            .textFieldStyle(.roundedBorder)
+                            .disabled(aiService.isAPIKeyValid && !isEditingCustomProvider)
+                        TextField("Model Name (e.g., gpt-4o-mini, claude-3-5-sonnet-20240620)", text: $aiService.customModel)
+                            .textFieldStyle(.roundedBorder)
+                            .disabled(aiService.isAPIKeyValid && !isEditingCustomProvider)
+                        
+                        if aiService.isAPIKeyValid && !isEditingCustomProvider {
+                            TextField("API Key", text: .constant(String(repeating: "•", count: max(aiService.apiKey.count, 8))))
                                 .textFieldStyle(.roundedBorder)
-                            
-                            TextField("Model Name (e.g., gpt-4o-mini, claude-3-5-sonnet-20240620)", text: $aiService.customModel)
-                                .textFieldStyle(.roundedBorder)
+                                .font(.system(.body, design: .monospaced))
+                                .disabled(true)
                         } else {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("API Endpoint URL")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                                Text(aiService.customBaseURL)
-                                    .font(.system(.body, design: .monospaced))
-                                
-                                Text("Model")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                                Text(aiService.customModel)
+                            if apiKey.isEmpty {
+                                SecureField(
+                                    "API Key",
+                                    text: Binding(
+                                        get: { String(repeating: "•", count: max(aiService.apiKey.count, 8)) },
+                                        set: { apiKey = $0 }
+                                    )
+                                )
+                                .textFieldStyle(.roundedBorder)
+                                .font(.system(.body, design: .monospaced))
+                            } else {
+                                SecureField("API Key", text: $apiKey)
+                                    .textFieldStyle(.roundedBorder)
                                     .font(.system(.body, design: .monospaced))
                             }
                         }
-                        
-                        if aiService.isAPIKeyValid {
-                            Text("API Key")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            
-                            HStack {
-                                Text(String(repeating: "•", count: 40))
-                                    .font(.system(.body, design: .monospaced))
-                                
-                                Spacer()
-                                
-                                Button(action: {
-                                    aiService.clearAPIKey()
-                                }) {
-                                    Label("Remove Key", systemImage: "trash")
-                                        .foregroundColor(.red)
-                                }
-                                .buttonStyle(.borderless)
-                            }
-                        } else {
-                            Text("Enter your API Key")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            
-                            SecureField("API Key", text: $apiKey)
-                                .textFieldStyle(.roundedBorder)
-                                .font(.system(.body, design: .monospaced))
-                            
-                            HStack {
-                                Button(action: {
-                                    isVerifying = true
-                                    aiService.saveAPIKey(apiKey) { success in
-                                        isVerifying = false
-                                        if !success {
-                                            alertMessage = "Invalid API key. Please check and try again."
-                                            showAlert = true
-                                        }
+
+                        HStack {
+                            Button(action: {
+                                let keyToVerify = apiKey.isEmpty ? aiService.apiKey : apiKey
+                                guard !keyToVerify.isEmpty else { return }
+                                isVerifying = true
+                                aiService.saveAPIKey(keyToVerify) { success in
+                                    isVerifying = false
+                                    if success {
+                                        isEditingCustomProvider = false
                                         apiKey = ""
-                                    }
-                                }) {
-                                    HStack {
-                                        if isVerifying {
-                                            ProgressView()
-                                                .scaleEffect(0.5)
-                                                .frame(width: 16, height: 16)
-                                        } else {
-                                            Image(systemName: "checkmark.circle.fill")
-                                        }
-                                        Text("Verify and Save")
+                                    } else {
+                                        alertMessage = "Invalid API key. Please check and try again."
+                                        showAlert = true
                                     }
                                 }
-                                .disabled(aiService.customBaseURL.isEmpty || aiService.customModel.isEmpty || apiKey.isEmpty)
-                                
-                                Spacer()
+                            }) {
+                                HStack {
+                                    if isVerifying {
+                                        ProgressView()
+                                            .scaleEffect(0.5)
+                                            .frame(width: 16, height: 16)
+                                    } else {
+                                        Image(systemName: "checkmark.circle.fill")
+                                    }
+                                    Text("Verify Connection")
+                                }
                             }
+                            .disabled((aiService.customBaseURL.isEmpty || aiService.customModel.isEmpty) || (aiService.apiKey.isEmpty && apiKey.isEmpty))
+                            
+                            Spacer()
                         }
                     }
                 }
@@ -452,6 +452,14 @@ struct APIKeyManagementView: View {
         .onAppear {
             if aiService.selectedProvider == .ollama {
                 checkOllamaConnection()
+            }
+            if aiService.selectedProvider == .custom && !aiService.isAPIKeyValid {
+                isEditingCustomProvider = true
+            }
+        }
+        .onChange(of: aiService.isAPIKeyValid) { oldValue, newValue in
+            if !newValue {
+                isEditingCustomProvider = true
             }
         }
     }
