@@ -74,6 +74,40 @@ struct SettingsView: View {
                     subtitle: "Additional shortcuts for VoiceInk"
                 ) {
                     VStack(alignment: .leading, spacing: 18) {
+                        HStack(spacing: 12) {
+                            Text("Toggle AI Enhancement")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(.secondary)
+
+                            KeyboardShortcuts.Recorder(for: .toggleAIEnhancement)
+                                .controlSize(.small)
+
+                            InfoTip(
+                                title: "Toggle AI Enhancement",
+                                message: "Enable or disable AI enhancement."
+                            )
+
+                            Spacer()
+                        }
+
+                        HStack(spacing: 12) {
+                            Text("Cycle Enhancement Prompt")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(.secondary)
+
+                            KeyboardShortcuts.Recorder(for: .cycleEnhancementPrompt)
+                                .controlSize(.small)
+
+                            InfoTip(
+                                title: "Cycle Enhancement Prompt",
+                                message: "Quickly move to the next enhancement prompt to match the current conversation."
+                            )
+
+                            Spacer()
+                        }
+
+                        Divider()
+
                         // Paste Last Transcript (Original)
                         HStack(spacing: 12) {
                             Text("Paste Last Transcript(Original)")
@@ -518,5 +552,3 @@ extension Text {
             .fixedSize(horizontal: false, vertical: true)
     }
 }
-
-

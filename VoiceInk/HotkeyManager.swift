@@ -9,6 +9,8 @@ extension KeyboardShortcuts.Name {
     static let pasteLastTranscription = Self("pasteLastTranscription")
     static let pasteLastEnhancement = Self("pasteLastEnhancement")
     static let retryLastTranscription = Self("retryLastTranscription")
+    static let toggleAIEnhancement = Self("toggleAIEnhancement")
+    static let cycleEnhancementPrompt = Self("cycleEnhancementPrompt")
 }
 
 @MainActor
@@ -41,6 +43,7 @@ class HotkeyManager: ObservableObject {
     }
     
     private var whisperState: WhisperState
+    private var enhancementService: AIEnhancementService
     private var miniRecorderShortcutManager: MiniRecorderShortcutManager
     
     // MARK: - Helper Properties
@@ -116,7 +119,7 @@ class HotkeyManager: ObservableObject {
         }
     }
     
-    init(whisperState: WhisperState) {
+    init(whisperState: WhisperState, enhancementService: AIEnhancementService) {
         // One-time migration from legacy single-hotkey settings
         if UserDefaults.standard.object(forKey: "didMigrateHotkeys_v2") == nil {
             // If legacy push-to-talk modifier key was enabled, carry it over
@@ -141,6 +144,7 @@ class HotkeyManager: ObservableObject {
         self.middleClickActivationDelay = storedDelay > 0 ? storedDelay : 200
         
         self.whisperState = whisperState
+        self.enhancementService = enhancementService
         self.miniRecorderShortcutManager = MiniRecorderShortcutManager(whisperState: whisperState)
 
         KeyboardShortcuts.onKeyUp(for: .pasteLastTranscription) { [weak self] in
@@ -163,7 +167,21 @@ class HotkeyManager: ObservableObject {
                 LastTranscriptionService.retryLastTranscription(from: self.whisperState.modelContext, whisperState: self.whisperState)
             }
         }
-        
+
+        KeyboardShortcuts.onKeyUp(for: .toggleAIEnhancement) { [weak self] in
+            guard let self = self else { return }
+            Task { @MainActor in
+                self.enhancementService.isEnhancementEnabled.toggle()
+            }
+        }
+
+        KeyboardShortcuts.onKeyUp(for: .cycleEnhancementPrompt) { [weak self] in
+            guard let self = self else { return }
+            Task { @MainActor in
+                self.enhancementService.selectNextPrompt()
+            }
+        }
+
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 100_000_000)
             self.setupHotkeyMonitoring()

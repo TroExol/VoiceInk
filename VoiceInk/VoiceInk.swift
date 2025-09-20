@@ -62,13 +62,15 @@ struct VoiceInkApp: App {
         
         let enhancementService = AIEnhancementService(aiService: aiService, modelContext: container.mainContext)
         _enhancementService = StateObject(wrappedValue: enhancementService)
-        
+
         let whisperState = WhisperState(modelContext: container.mainContext, enhancementService: enhancementService)
         _whisperState = StateObject(wrappedValue: whisperState)
-        
-        let hotkeyManager = HotkeyManager(whisperState: whisperState)
+
+        let hotkeyManager = HotkeyManager(whisperState: whisperState, enhancementService: enhancementService)
         _hotkeyManager = StateObject(wrappedValue: hotkeyManager)
-        
+
+        EnhancementHUDManager.shared.configure(with: enhancementService)
+
         let menuBarManager = MenuBarManager(
             updaterViewModel: updaterViewModel,
             whisperState: whisperState,
@@ -245,6 +247,4 @@ struct WindowAccessor: NSViewRepresentable {
     
     func updateNSView(_ nsView: NSView, context: Context) {}
 }
-
-
 

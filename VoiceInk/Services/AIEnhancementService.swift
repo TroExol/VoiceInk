@@ -531,6 +531,20 @@ class AIEnhancementService: ObservableObject {
         selectedPromptId = prompt.id
     }
 
+    func selectNextPrompt() {
+        let prompts = allPrompts
+        guard !prompts.isEmpty else { return }
+
+        if let currentId = selectedPromptId,
+           let currentIndex = prompts.firstIndex(where: { $0.id == currentId }) {
+            let nextIndex = prompts.index(after: currentIndex)
+            let wrappedIndex = nextIndex < prompts.endIndex ? nextIndex : prompts.startIndex
+            selectedPromptId = prompts[wrappedIndex].id
+        } else {
+            selectedPromptId = prompts.first?.id
+        }
+    }
+
     private func initializePredefinedPrompts() {
         let predefinedTemplates = PredefinedPrompts.createDefaultPrompts()
 
