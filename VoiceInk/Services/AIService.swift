@@ -182,10 +182,17 @@ class AIService: ObservableObject {
     }
     
     @Published private var selectedModels: [AIProvider: String] = [:]
+    @Published private var providerTimeoutValues: [String: Double] = [:]
+    @Published private var providerAttemptValues: [String: Int] = [:]
     private let userDefaults = UserDefaults.standard
     private lazy var ollamaService = OllamaService()
     
     @Published private var openRouterModels: [String] = []
+    
+    private let providerTimeoutDefaultsKey = "AIProviderTimeouts"
+    private let providerAttemptDefaultsKey = "AIProviderAttempts"
+    private let defaultTimeout: TimeInterval = 30
+    private let defaultAttempts: Int = 3
     
     var connectedProviders: [AIProvider] {
         AIProvider.allCases.filter { provider in
@@ -235,6 +242,8 @@ class AIService: ObservableObject {
         
         loadSavedModelSelections()
         loadSavedOpenRouterModels()
+        loadProviderTimeouts()
+        loadProviderAttempts()
     }
     
     private func loadSavedModelSelections() {
@@ -249,6 +258,18 @@ class AIService: ObservableObject {
     private func loadSavedOpenRouterModels() {
         if let savedModels = userDefaults.array(forKey: "openRouterModels") as? [String] {
             openRouterModels = savedModels
+        }
+    }
+    
+    private func loadProviderTimeouts() {
+        if let stored = userDefaults.dictionary(forKey: providerTimeoutDefaultsKey) as? [String: Double] {
+            providerTimeoutValues = stored
+        }
+    }
+    
+    private func loadProviderAttempts() {
+        if let stored = userDefaults.dictionary(forKey: providerAttemptDefaultsKey) as? [String: Int] {
+            providerAttemptValues = stored
         }
     }
     
@@ -269,6 +290,30 @@ class AIService: ObservableObject {
         
         objectWillChange.send()
         NotificationCenter.default.post(name: .AppSettingsDidChange, object: nil)
+    }
+
+    func timeout(for provider: AIProvider) -> TimeInterval {
+        let value = providerTimeoutValues[provider.rawValue] ?? defaultTimeout
+        return max(value, 1)
+    }
+    
+    func attempts(for provider: AIProvider) -> Int {
+        let value = providerAttemptValues[provider.rawValue] ?? defaultAttempts
+        return max(value, 1)
+    }
+    
+    func updateTimeout(for provider: AIProvider, value: TimeInterval) {
+        let clamped = max(value, 1)
+        providerTimeoutValues[provider.rawValue] = clamped
+        userDefaults.set(providerTimeoutValues, forKey: providerTimeoutDefaultsKey)
+        objectWillChange.send()
+    }
+    
+    func updateAttempts(for provider: AIProvider, value: Int) {
+        let clamped = max(value, 1)
+        providerAttemptValues[provider.rawValue] = clamped
+        userDefaults.set(providerAttemptValues, forKey: providerAttemptDefaultsKey)
+        objectWillChange.send()
     }
     
     func saveAPIKey(_ key: String, completion: @escaping (Bool) -> Void) {
@@ -560,5 +605,4 @@ class AIService: ObservableObject {
 
     }
 }
-
 

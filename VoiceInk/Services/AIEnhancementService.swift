@@ -393,15 +393,18 @@ class AIEnhancementService: ObservableObject {
     }
 
     private func makeRequestWithRetry(text: String, mode: EnhancementPrompt) async throws -> String {
-        let maxAttempts = 3
-        let launchInterval = baseTimeout
+        let provider = aiService.selectedProvider
+        let configuredAttempts = aiService.attempts(for: provider)
+        let maxAttempts = max(1, configuredAttempts)
+        let configuredInterval = aiService.timeout(for: provider)
+        let launchInterval = configuredInterval > 0 ? configuredInterval : baseTimeout
 
         try Task.checkCancellation()
 
         return try await withThrowingTaskGroup(of: (Int, Result<String, Error>).self, returning: String.self) { group in
             for attemptIndex in 0..<maxAttempts {
                 let delay = TimeInterval(attemptIndex) * launchInterval
-                let attemptTimeout = launchInterval * TimeInterval(maxAttempts - attemptIndex)
+                let attemptTimeout = launchInterval * TimeInterval(max(maxAttempts - attemptIndex, 1))
 
                 group.addTask { [weak self, delay, attemptTimeout] in
                     do {

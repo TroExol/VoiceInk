@@ -12,6 +12,17 @@ struct APIKeyManagementView: View {
     @State private var isCheckingOllama = false
     @State private var isEditingURL = false
     @State private var isEditingCustomProvider = false
+    @State private var providerTimeout: Double = 30
+    @State private var providerAttempts: Int = 3
+    
+    private let timeoutFormatter: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.minimum = 1
+        formatter.maximumFractionDigits = 1
+        formatter.allowsFloats = true
+        formatter.usesGroupingSeparator = false
+        return formatter
+    }()
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -51,6 +62,9 @@ struct APIKeyManagementView: View {
             }
             
             .onChange(of: aiService.selectedProvider) { oldValue, newValue in
+                providerTimeout = aiService.timeout(for: newValue)
+                providerAttempts = aiService.attempts(for: newValue)
+                
                 if aiService.selectedProvider == .ollama {
                     checkOllamaConnection()
                 }
@@ -442,6 +456,34 @@ struct APIKeyManagementView: View {
                     }
                 }
             }
+
+            if aiService.selectedProvider != .ollama {
+                GroupBox {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("Request Scheduling", systemImage: "timer")
+                            .font(.headline)
+
+                        HStack {
+                            Text("Launch interval (s)")
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            TextField("Timeout", value: $providerTimeout, formatter: timeoutFormatter)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                                .frame(width: 100)
+                                .multilineTextAlignment(.trailing)
+                        }
+
+                        Stepper(value: $providerAttempts, in: 1...10) {
+                            Text("Max attempts: \(providerAttempts)")
+                        }
+
+                        Text("Each attempt times out after interval × remaining attempts.")
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
         }
         .padding()
         .alert("Error", isPresented: $showAlert) {
@@ -456,11 +498,29 @@ struct APIKeyManagementView: View {
             if aiService.selectedProvider == .custom && !aiService.isAPIKeyValid {
                 isEditingCustomProvider = true
             }
+            providerTimeout = aiService.timeout(for: aiService.selectedProvider)
+            providerAttempts = aiService.attempts(for: aiService.selectedProvider)
         }
         .onChange(of: aiService.isAPIKeyValid) { oldValue, newValue in
             if !newValue {
                 isEditingCustomProvider = true
             }
+        }
+        .onChange(of: providerTimeout) { _, newValue in
+            let sanitized = max(newValue, 1)
+            if sanitized != providerTimeout {
+                providerTimeout = sanitized
+                return
+            }
+            aiService.updateTimeout(for: aiService.selectedProvider, value: sanitized)
+        }
+        .onChange(of: providerAttempts) { _, newValue in
+            let sanitized = max(newValue, 1)
+            if sanitized != providerAttempts {
+                providerAttempts = sanitized
+                return
+            }
+            aiService.updateAttempts(for: aiService.selectedProvider, value: sanitized)
         }
     }
     
