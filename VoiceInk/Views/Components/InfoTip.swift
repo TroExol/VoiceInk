@@ -3,10 +3,10 @@ import SwiftUI
 /// A reusable info tip component that displays helpful information in a popover
 struct InfoTip: View {
     // Content configuration
-    var title: String
-    var message: String
+    var title: LocalizedStringKey
+    var message: LocalizedStringKey
     var learnMoreLink: URL?
-    var learnMoreText: String = "Learn More"
+    var learnMoreText: LocalizedStringKey = "Learn More"
     
     // Appearance customization
     var iconName: String = "info.circle.fill"
@@ -34,10 +34,12 @@ struct InfoTip: View {
                         .padding(.bottom, learnMoreLink != nil ? 5 : 0)
                     
                     if let url = learnMoreLink {
-                        Button(learnMoreText) {
+                        Button(action: {
                             NSWorkspace.shared.open(url)
+                        }) {
+                            Text(learnMoreText)
                         }
-                        .foregroundColor(.blue)  
+                        .foregroundColor(.blue)
                     }
                 }
                 .padding()
@@ -52,16 +54,17 @@ struct InfoTip: View {
 
 extension InfoTip {
     /// Creates an InfoTip with just title and message
-    init(title: String, message: String) {
+    init(title: LocalizedStringKey, message: LocalizedStringKey) {
         self.title = title
         self.message = message
         self.learnMoreLink = nil
     }
     
     /// Creates an InfoTip with a learn more link
-    init(title: String, message: String, learnMoreURL: String) {
+    init(title: LocalizedStringKey, message: LocalizedStringKey, learnMoreURL: String, learnMoreText: LocalizedStringKey = "Learn More") {
         self.title = title
         self.message = message
         self.learnMoreLink = URL(string: learnMoreURL)
+        self.learnMoreText = learnMoreText
     }
 }

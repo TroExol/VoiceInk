@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import KeyboardShortcuts
 import Carbon
 import AppKit
@@ -87,17 +88,17 @@ class HotkeyManager: ObservableObject {
         case rightShift = "rightShift"
         case custom = "custom"
         
-        var displayName: String {
+        var displayName: LocalizedStringKey {
             switch self {
-            case .none: return "None"
-            case .rightOption: return "Right Option (⌥)"
-            case .leftOption: return "Left Option (⌥)"
-            case .leftControl: return "Left Control (⌃)"
-            case .rightControl: return "Right Control (⌃)"
-            case .fn: return "Fn"
-            case .rightCommand: return "Right Command (⌘)"
-            case .rightShift: return "Right Shift (⇧)"
-            case .custom: return "Custom"
+            case .none: return "HotkeyOption.None"
+            case .rightOption: return "HotkeyOption.RightOption"
+            case .leftOption: return "HotkeyOption.LeftOption"
+            case .leftControl: return "HotkeyOption.LeftControl"
+            case .rightControl: return "HotkeyOption.RightControl"
+            case .fn: return "HotkeyOption.Fn"
+            case .rightCommand: return "HotkeyOption.RightCommand"
+            case .rightShift: return "HotkeyOption.RightShift"
+            case .custom: return "HotkeyOption.Custom"
             }
         }
         

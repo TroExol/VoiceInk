@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Foundation
 
 struct TranscriptionHistoryView: View {
     @Environment(\.modelContext) private var modelContext
@@ -96,7 +97,7 @@ struct TranscriptionHistoryView: View {
                                                 ProgressView()
                                                     .controlSize(.small)
                                             }
-                                            Text(isLoading ? "Loading..." : "Load More")
+                                            Text(isLoading ? String(localized: "history.loading") : String(localized: "history.loadMore"))
                                                 .font(.system(size: 14, weight: .medium))
                                         }
                                         .frame(maxWidth: .infinity)
@@ -134,7 +135,7 @@ struct TranscriptionHistoryView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This action cannot be undone. Are you sure you want to delete \(selectedTranscriptions.count) item\(selectedTranscriptions.count == 1 ? "" : "s")?")
+            Text(deleteConfirmationMessage(for: selectedTranscriptions.count))
         }
         .sheet(isPresented: $showAnalysisView) {
             if !selectedTranscriptions.isEmpty {
@@ -250,7 +251,7 @@ struct TranscriptionHistoryView: View {
     
     private var selectionToolbar: some View {
         HStack(spacing: 12) {
-            Text("\(selectedTranscriptions.count) selected")
+            Text(selectionCountText(for: selectedTranscriptions.count))
                 .foregroundColor(.secondary)
                 .font(.system(size: 14))
             
@@ -408,6 +409,16 @@ struct TranscriptionHistoryView: View {
             try? await modelContext.save()
             await loadInitialContent()
         }
+    }
+    
+    private func selectionCountText(for count: Int) -> String {
+        let format = NSLocalizedString("history.selectionCount", comment: "Selection count label in history toolbar")
+        return String.localizedStringWithFormat(format, count)
+    }
+
+    private func deleteConfirmationMessage(for count: Int) -> String {
+        let format = NSLocalizedString("history.deleteConfirmationMessage", comment: "Delete confirmation prompt in history section")
+        return String.localizedStringWithFormat(format, count)
     }
     
     private func toggleSelection(_ transcription: Transcription) {

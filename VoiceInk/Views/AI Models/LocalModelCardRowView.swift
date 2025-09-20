@@ -143,7 +143,7 @@ struct LocalModelCardView: View {
             } else {
                 Button(action: downloadAction) {
                     HStack(spacing: 4) {
-                        Text(isDownloading ? "Downloading..." : "Download")
+                        Text(isDownloading ? String(localized: "models.button.downloading") : String(localized: "models.button.download"))
                             .font(.system(size: 12, weight: .medium))
                         Image(systemName: "arrow.down.circle")
                             .font(.system(size: 12, weight: .medium))

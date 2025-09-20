@@ -148,12 +148,16 @@ struct OnboardingPermissionsView: View {
                                         .padding()
                                     } else {
                                         styledPicker(
-                                            label: "Microphone:",
+                                            label: LocalizedStringKey("Microphone:"),
                                             selectedValue: audioDeviceManager.selectedDeviceID ?? 0,
-                                            displayValue: audioDeviceManager.availableDevices.first { $0.id == audioDeviceManager.selectedDeviceID }?.name ?? "Select Device",
+                                            displayValue: LocalizedStringKey(
+                                                audioDeviceManager.availableDevices.first { $0.id == audioDeviceManager.selectedDeviceID }?.name ?? String(localized: "Select Device")
+                                            ),
                                             options: audioDeviceManager.availableDevices.map { $0.id },
                                             optionDisplayName: { deviceId in
-                                                audioDeviceManager.availableDevices.first { $0.id == deviceId }?.name ?? "Unknown Device"
+                                                LocalizedStringKey(
+                                                    audioDeviceManager.availableDevices.first { $0.id == deviceId }?.name ?? String(localized: "Unknown Device")
+                                                )
                                             },
                                             onSelection: { deviceId in
                                                 audioDeviceManager.selectDevice(id: deviceId)
@@ -401,11 +405,11 @@ struct OnboardingPermissionsView: View {
 
     @ViewBuilder
     private func styledPicker<T: Hashable>(
-        label: String,
+        label: LocalizedStringKey,
         selectedValue: T,
-        displayValue: String,
+        displayValue: LocalizedStringKey,
         options: [T],
-        optionDisplayName: @escaping (T) -> String,
+        optionDisplayName: @escaping (T) -> LocalizedStringKey,
         onSelection: @escaping (T) -> Void
     ) -> some View {
         VStack(spacing: 16) {

@@ -22,10 +22,10 @@ enum ConfigurationMode: Hashable {
         return false
     }
     
-    var title: String {
+    var title: LocalizedStringKey {
         switch self {
-        case .add: return "Add Power Mode"
-        case .edit: return "Edit Power Mode"
+        case .add: return LocalizedStringKey("Add Power Mode")
+        case .edit: return LocalizedStringKey("Edit Power Mode")
         }
     }
     
@@ -100,7 +100,7 @@ struct PowerModeView: View {
                                     HStack(spacing: 6) {
                                         Image(systemName: "plus")
                                             .font(.system(size: 12, weight: .medium))
-                                        Text("Add Power Mode")
+                                        Text(LocalizedStringKey("Add Power Mode"))
                                             .font(.system(size: 13, weight: .medium))
                                     }
                                     .foregroundColor(.white)
@@ -115,7 +115,7 @@ struct PowerModeView: View {
                                 HStack(spacing: 6) {
                                     Image(systemName: isReorderMode ? "checkmark" : "arrow.up.arrow.down")
                                         .font(.system(size: 12, weight: .medium))
-                                    Text(isReorderMode ? "Done" : "Reorder")
+                                    Text(isReorderMode ? LocalizedStringKey("Done") : LocalizedStringKey("Reorder"))
                                         .font(.system(size: 13, weight: .medium))
                                 }
                                 .foregroundColor(.white)
@@ -258,8 +258,8 @@ struct PowerModeView: View {
 
 // New component for section headers
 struct SectionHeader: View {
-    let title: String
-    
+    let title: LocalizedStringKey
+
     var body: some View {
         Text(title)
             .font(.system(size: 16, weight: .bold))

@@ -8,12 +8,16 @@ struct DictionarySettingsView: View {
         case replacements = "Word Replacements"
         case spellings = "Correct Spellings"
         
-        var description: String {
+        var titleKey: LocalizedStringKey {
+            LocalizedStringKey(rawValue)
+        }
+        
+        var descriptionKey: LocalizedStringKey {
             switch self {
             case .spellings:
-                return "Add words to help VoiceInk recognize them properly"
+                return "Add words so AI enhancement understands them correctly"
             case .replacements:
-                return "Automatically replace specific words/phrases with custom formatted text "
+                return "Automatically replace specific words or phrases with custom formatted text"
             }
         }
         
@@ -51,7 +55,7 @@ struct DictionarySettingsView: View {
             VStack(spacing: 8) {
                 Text("Dictionary Settings")
                     .font(.system(size: 28, weight: .bold))
-                Text("Enhance VoiceInk's transcription accuracy by teaching it your vocabulary")
+                Text("Improve AI enhancement accuracy by teaching it your vocabulary")
                     .font(.system(size: 15))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -118,10 +122,10 @@ struct SectionCard: View {
                     .foregroundStyle(isSelected ? .blue : .secondary)
                 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(section.rawValue)
+                    Text(section.titleKey)
                         .font(.headline)
                     
-                    Text(section.description)
+                    Text(section.descriptionKey)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)

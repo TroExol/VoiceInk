@@ -58,7 +58,7 @@ struct TimeEfficiencyView: View {
                 Text("You are")
                     .font(.system(size: 32, weight: .bold))
                 
-                Text("\(efficiencyMultiplierFormatted) Faster")
+                (Text(efficiencyMultiplierFormatted) + Text(" ") + Text(String(localized: "Faster")))
                     .font(.system(size: 32, weight: .bold))
                     .foregroundStyle(efficiencyGradient)
                 
@@ -183,7 +183,7 @@ struct TimeEfficiencyView: View {
 
 struct TimeBlockView: View {
     let duration: TimeInterval
-    let label: String
+    let label: LocalizedStringKey
     let icon: String
     let color: Color
     

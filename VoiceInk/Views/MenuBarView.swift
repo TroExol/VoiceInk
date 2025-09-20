@@ -33,7 +33,7 @@ struct MenuBarView: View {
                 Divider()
                 
                 Button("Manage Models") {
-                    menuBarManager.openMainWindowAndNavigate(to: "AI Models")
+                    menuBarManager.openMainWindowAndNavigate(to: .models)
                 }
             } label: {
                 HStack {
@@ -94,7 +94,7 @@ struct MenuBarView: View {
                 Divider()
                 
                 Button("Manage AI Providers") {
-                    menuBarManager.openMainWindowAndNavigate(to: "Enhancement")
+                    menuBarManager.openMainWindowAndNavigate(to: .enhancement)
                 }
             } label: {
                 HStack {
@@ -127,7 +127,7 @@ struct MenuBarView: View {
                 Divider()
                 
                 Button("Manage AI Models") {
-                    menuBarManager.openMainWindowAndNavigate(to: "Enhancement")
+                    menuBarManager.openMainWindowAndNavigate(to: .enhancement)
                 }
             } label: {
                 HStack {
@@ -182,11 +182,11 @@ struct MenuBarView: View {
             }
             
             Button("History") {
-                menuBarManager.openMainWindowAndNavigate(to: "History")
+                menuBarManager.openMainWindowAndNavigate(to: .history)
             }
             
             Button("Settings") {
-                menuBarManager.openMainWindowAndNavigate(to: "Settings")
+                menuBarManager.openMainWindowAndNavigate(to: .settings)
             }
             
             Button(menuBarManager.isMenuBarOnly ? "Show Dock Icon" : "Hide Dock Icon") {

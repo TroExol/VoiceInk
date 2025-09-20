@@ -126,8 +126,8 @@ class ImportExportService {
             let savePanel = NSSavePanel()
             savePanel.allowedContentTypes = [UTType.json]
             savePanel.nameFieldStringValue = "VoiceInk_Settings_Backup.json"
-            savePanel.title = "Export VoiceInk Settings"
-            savePanel.message = "Choose a location to save your settings."
+        savePanel.title = String(localized: "Export VoiceInk Settings")
+        savePanel.message = String(localized: "Choose a location to save your settings.")
 
             DispatchQueue.main.async {
                 if savePanel.runModal() == .OK {
@@ -140,7 +140,10 @@ class ImportExportService {
                         }
                     }
                 } else {
-                    self.showAlert(title: "Export Canceled", message: "The settings export operation was canceled.")
+                    self.showAlert(
+                        title: String(localized: "Export Canceled"),
+                        message: String(localized: "The settings export operation was canceled.")
+                    )
                 }
             }
         } catch {
@@ -155,8 +158,8 @@ class ImportExportService {
         openPanel.canChooseFiles = true
         openPanel.canChooseDirectories = false
         openPanel.allowsMultipleSelection = false
-        openPanel.title = "Import VoiceInk Settings"
-        openPanel.message = "Choose a settings file to import. This will overwrite ALL settings (prompts, power modes, dictionary, general app settings)."
+        openPanel.title = String(localized: "Import VoiceInk Settings")
+        openPanel.message = String(localized: "Choose a settings file to import. This will overwrite ALL settings (prompts, power modes, dictionary, general app settings).")
 
         DispatchQueue.main.async {
             if openPanel.runModal() == .OK {
@@ -283,7 +286,10 @@ class ImportExportService {
                     self.showAlert(title: "Import Error", message: "Error importing settings: \(error.localizedDescription). The file might be corrupted or not in the correct format.")
                 }
             } else {
-                self.showAlert(title: "Import Canceled", message: "The settings import operation was canceled.")
+                    self.showAlert(
+                        title: String(localized: "Import Canceled"),
+                        message: String(localized: "The settings import operation was canceled.")
+                    )
             }
         }
     }

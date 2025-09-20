@@ -44,7 +44,7 @@ struct AddCustomModelCardView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "plus")
                             .font(.system(size: 14, weight: .medium))
-                        Text(editingModel != nil ? "Edit Model" : "Add Model")
+                        Text(editingModel != nil ? LocalizedStringKey("Edit Model") : LocalizedStringKey("Add Model"))
                             .font(.system(size: 14, weight: .semibold))
                     }
                     .foregroundColor(.white)
@@ -62,7 +62,7 @@ struct AddCustomModelCardView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     // Header
                     HStack {
-                        Text(editingModel != nil ? "Edit Custom Model" : "Add Custom Model")
+                        Text(editingModel != nil ? LocalizedStringKey("Edit Custom Model") : LocalizedStringKey("Add Custom Model"))
                             .font(.headline)
                             .foregroundColor(.primary)
                         

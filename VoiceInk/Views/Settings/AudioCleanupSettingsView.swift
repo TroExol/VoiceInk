@@ -122,7 +122,7 @@ struct AudioCleanupSettingsView: View {
                         } else {
                             Image(systemName: "arrow.clockwise")
                         }
-                        Text(isPerformingCleanup ? "Analyzing..." : "Run Cleanup Now")
+                        Text(isPerformingCleanup ? LocalizedStringKey("Analyzing...") : LocalizedStringKey("Run Cleanup Now"))
                     }
                 }
                 .buttonStyle(.bordered)

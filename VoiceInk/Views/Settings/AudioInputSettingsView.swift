@@ -264,7 +264,11 @@ struct InputModeCard: View {
         }
     }
     
-    private var description: String {
+    private var titleKey: LocalizedStringKey {
+        LocalizedStringKey(mode.rawValue)
+    }
+    
+    private var descriptionKey: LocalizedStringKey {
         switch mode {
         case .systemDefault: return "Use system's default input device"
         case .custom: return "Select a specific input device"
@@ -281,10 +285,10 @@ struct InputModeCard: View {
                     .foregroundStyle(isSelected ? .blue : .secondary)
                 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(mode.rawValue)
+                    Text(titleKey)
                         .font(.headline)
                     
-                    Text(description)
+                    Text(descriptionKey)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)

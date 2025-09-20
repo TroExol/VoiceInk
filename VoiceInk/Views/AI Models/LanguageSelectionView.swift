@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 
 // Define a display mode for flexible usage
 enum LanguageDisplayMode {
@@ -82,7 +83,7 @@ struct LanguageSelectionView: View {
                             .font(.subheadline)
                             .foregroundColor(.primary)
 
-                        Text("Current model: \(currentModel.displayName)")
+                        Text(localizedCurrentModelText(currentModel.displayName))
                             .font(.caption)
                             .foregroundColor(.secondary)
 
@@ -109,13 +110,11 @@ struct LanguageSelectionView: View {
                             updateLanguage(newValue)
                         }
 
-                        Text("Current model: \(currentModel.displayName)")
+                        Text(localizedCurrentModelText(currentModel.displayName))
                             .font(.caption)
                             .foregroundColor(.secondary)
 
-                        Text(
-                            "This model supports multiple languages. Select a specific language or auto-detect(if available)"
-                        )
+                        Text(String(localized: "models.multilingualHint"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                     }
@@ -126,13 +125,11 @@ struct LanguageSelectionView: View {
                             .font(.subheadline)
                             .foregroundColor(.primary)
 
-                        Text("Current model: \(currentModel.displayName)")
+                        Text(localizedCurrentModelText(currentModel.displayName))
                             .font(.caption)
                             .foregroundColor(.secondary)
 
-                        Text(
-                            "This is an English-optimized model and only supports English transcription."
-                        )
+                        Text(String(localized: "models.englishOnlyHint"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                     }
@@ -196,7 +193,7 @@ struct LanguageSelectionView: View {
                 Button {
                     // Do nothing, just showing info
                 } label: {
-                    Text("Language: English (only)")
+                    Text(String(localized: "Language: English (only)"))
                         .foregroundColor(.secondary)
                 }
                 .disabled(true)
@@ -206,5 +203,10 @@ struct LanguageSelectionView: View {
                 }
             }
         }
+    }
+
+    private func localizedCurrentModelText(_ displayName: String) -> String {
+        let format = String(localized: "models.currentModel", comment: "Current model label with placeholder for model name")
+        return String(format: format, displayName)
     }
 }

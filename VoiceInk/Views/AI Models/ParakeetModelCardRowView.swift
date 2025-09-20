@@ -125,7 +125,7 @@ struct ParakeetModelCardRowView: View {
                         await whisperState.setDefaultTranscriptionModel(model)
                     }
                 }) {
-                    Text("Set as Default")
+                    Text(LocalizedStringKey("Set as Default"))
                         .font(.system(size: 12))
                 }
                 .buttonStyle(.bordered)
@@ -137,7 +137,7 @@ struct ParakeetModelCardRowView: View {
                     }
                 }) {
                     HStack(spacing: 4) {
-                        Text(isDownloading ? "Downloading..." : "Download")
+                        Text(isDownloading ? LocalizedStringKey("models.button.downloading") : LocalizedStringKey("models.button.download"))
                         Image(systemName: "arrow.down.circle")
                     }
                     .font(.system(size: 12, weight: .medium))

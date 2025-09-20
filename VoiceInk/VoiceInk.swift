@@ -14,6 +14,7 @@ struct VoiceInkApp: App {
     @StateObject private var hotkeyManager: HotkeyManager
     @StateObject private var updaterViewModel: UpdaterViewModel
     @StateObject private var menuBarManager: MenuBarManager
+    @StateObject private var languageManager: LanguageManager
     @StateObject private var aiService = AIService()
     @StateObject private var enhancementService: AIEnhancementService
     @StateObject private var activeWindowService = ActiveWindowService.shared
@@ -54,6 +55,9 @@ struct VoiceInkApp: App {
         }
         
         // Initialize services with proper sharing of instances
+        let languageManager = LanguageManager()
+        _languageManager = StateObject(wrappedValue: languageManager)
+
         let aiService = AIService()
         _aiService = StateObject(wrappedValue: aiService)
         
@@ -77,7 +81,8 @@ struct VoiceInkApp: App {
             container: container,
             enhancementService: enhancementService,
             aiService: aiService,
-            hotkeyManager: hotkeyManager
+            hotkeyManager: hotkeyManager,
+            languageManager: languageManager
         )
         _menuBarManager = StateObject(wrappedValue: menuBarManager)
         
@@ -104,6 +109,8 @@ struct VoiceInkApp: App {
                     .environmentObject(menuBarManager)
                     .environmentObject(aiService)
                     .environmentObject(enhancementService)
+                    .environmentObject(languageManager)
+                    .environment(\.locale, languageManager.locale)
                     .modelContainer(container)
                     .onAppear {
                         updaterViewModel.silentlyCheckForUpdates()
@@ -145,6 +152,8 @@ struct VoiceInkApp: App {
                     .environmentObject(whisperState)
                     .environmentObject(aiService)
                     .environmentObject(enhancementService)
+                    .environmentObject(languageManager)
+                    .environment(\.locale, languageManager.locale)
                     .frame(minWidth: 880, minHeight: 780)
                     .background(WindowAccessor { window in
                         // Ensure this is called only once or is idempotent
@@ -168,6 +177,8 @@ struct VoiceInkApp: App {
                 .environmentObject(updaterViewModel)
                 .environmentObject(aiService)
                 .environmentObject(enhancementService)
+                .environmentObject(languageManager)
+                .environment(\.locale, languageManager.locale)
         } label: {
             let image: NSImage = {
                 let ratio = $0.size.height / $0.size.width

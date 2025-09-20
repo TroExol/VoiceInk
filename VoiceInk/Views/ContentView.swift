@@ -15,6 +15,8 @@ enum ViewType: String, CaseIterable {
     case dictionary = "Dictionary"
     case settings = "Settings"
     
+    var localizedTitle: LocalizedStringKey { LocalizedStringKey(rawValue) }
+    
     var icon: String {
         switch self {
         case .metrics: return "gauge.medium"
@@ -78,7 +80,7 @@ struct DynamicSidebar: View {
             // Navigation Items
             ForEach(ViewType.allCases, id: \.self) { viewType in
                 DynamicSidebarButton(
-                    title: viewType.rawValue,
+                    title: viewType.localizedTitle,
                     systemImage: viewType.icon,
                     isSelected: selectedView == viewType,
                     isHovered: hoveredView == viewType,
@@ -98,7 +100,7 @@ struct DynamicSidebar: View {
 }
 
 struct DynamicSidebarButton: View {
-    let title: String
+    let title: LocalizedStringKey
     let systemImage: String
     let isSelected: Bool
     let isHovered: Bool
@@ -183,29 +185,11 @@ struct ContentView: View {
             print("ContentView: Received navigation notification")
             if let destination = notification.userInfo?["destination"] as? String {
                 print("ContentView: Destination received: \(destination)")
-                switch destination {
-                case "Settings":
-                    print("ContentView: Navigating to Settings")
-                    selectedView = .settings
-                case "AI Models":
-                    print("ContentView: Navigating to AI Models")
-                    selectedView = .models
-                case "History":
-                    print("ContentView: Navigating to History")
-                    selectedView = .history
-                case "Permissions":
-                    print("ContentView: Navigating to Permissions")
-                    selectedView = .permissions
-                case "Enhancement":
-                    print("ContentView: Navigating to Enhancement")
-                    selectedView = .enhancement
-                case "Transcribe Audio":
-                    // Ensure we switch to the Transcribe Audio view in-place
-                    print("ContentView: Navigating to Transcribe Audio")
-                    selectedView = .transcribeAudio
-                default:
+                if let viewType = ViewType(rawValue: destination) {
+                    print("ContentView: Navigating to \(viewType.rawValue)")
+                    selectedView = viewType
+                } else {
                     print("ContentView: No matching destination found for: \(destination)")
-                    break
                 }
             } else {
                 print("ContentView: No destination in notification")

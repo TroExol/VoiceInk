@@ -84,10 +84,10 @@ class PermissionManager: ObservableObject {
 
 struct PermissionCard: View {
     let icon: String
-    let title: String
-    let description: String
+    let title: LocalizedStringKey
+    let description: LocalizedStringKey
     let isGranted: Bool
-    let buttonTitle: String
+    let buttonTitle: LocalizedStringKey
     let buttonAction: () -> Void
     let checkPermission: () -> Void
     @State private var isRefreshing = false
@@ -235,7 +235,7 @@ struct PermissionsView: View {
                         title: "Microphone Access",
                         description: "Allow VoiceInk to record your voice for transcription",
                         isGranted: permissionManager.audioPermissionStatus == .authorized,
-                        buttonTitle: permissionManager.audioPermissionStatus == .notDetermined ? "Request Permission" : "Open System Settings",
+                        buttonTitle: permissionManager.audioPermissionStatus == .notDetermined ? LocalizedStringKey("Request Permission") : LocalizedStringKey("Open System Settings"),
                         buttonAction: {
                             if permissionManager.audioPermissionStatus == .notDetermined {
                                 permissionManager.requestAudioPermission()
@@ -269,7 +269,7 @@ struct PermissionsView: View {
                         title: "Screen Recording Access",
                         description: "Allow VoiceInk to understand context from your screen for transcript Enhancement",
                         isGranted: permissionManager.isScreenRecordingEnabled,
-                        buttonTitle: "Request Permission",
+                        buttonTitle: LocalizedStringKey("Request Permission"),
                         buttonAction: {
                             permissionManager.requestScreenRecordingPermission()
                             // After requesting, open system preferences as fallback

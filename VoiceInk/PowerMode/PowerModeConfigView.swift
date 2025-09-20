@@ -603,7 +603,7 @@ struct ConfigurationView: View {
                             
                             InfoTip(
                                 title: "Auto Send",
-                                message: "Automatically presses the Return/Enter key after pasting text. This is useful for chat applications or forms where its not necessary to to make changes to the transcribed text"
+                                message: "autoSend.tip"
                             )
                             
                             Spacer()
@@ -614,7 +614,7 @@ struct ConfigurationView: View {
                     .padding(.horizontal)
                     
                     VoiceInkButton(
-                        title: mode.isAdding ? "Add New Power Mode" : "Save Changes",
+                        title: mode.isAdding ? LocalizedStringKey("Add New Power Mode") : LocalizedStringKey("Save Changes"),
                         action: saveConfiguration,
                         isDisabled: !canSave
                     )

@@ -96,7 +96,7 @@ struct DictionaryView: View {
             // Information Section
             GroupBox {
                 Label {
-                    Text("Add words to help VoiceInk recognize them properly. (Requires AI enhancement)")
+                    Text("Add words so AI enhancement understands them correctly. (Requires AI enhancement)")
                         .font(.system(size: 12))
                         .foregroundColor(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -127,7 +127,12 @@ struct DictionaryView: View {
             // Words List
             if !dictionaryManager.items.isEmpty {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Dictionary Items (\(dictionaryManager.items.count))")
+                    Text(
+                        String.localizedStringWithFormat(
+                            String(localized: "Dictionary Items Count Format"),
+                            dictionaryManager.items.count
+                        )
+                    )
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.secondary)
                     
@@ -171,7 +176,10 @@ struct DictionaryView: View {
         
         if parts.count == 1, let word = parts.first {
             if dictionaryManager.items.contains(where: { $0.word.lowercased() == word.lowercased() }) {
-                alertMessage = "'\(word)' is already in the dictionary"
+                alertMessage = String.localizedStringWithFormat(
+                    String(localized: "Dictionary duplicate word message"),
+                    word
+                )
                 showAlert = true
                 return
             }

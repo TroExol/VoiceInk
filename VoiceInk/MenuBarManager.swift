@@ -17,14 +17,16 @@ class MenuBarManager: ObservableObject {
     private var enhancementService: AIEnhancementService
     private var aiService: AIService
     private var hotkeyManager: HotkeyManager
+    private var languageManager: LanguageManager
     private var mainWindow: NSWindow?  // Store window reference
     
-    init(updaterViewModel: UpdaterViewModel, 
-         whisperState: WhisperState, 
+    init(updaterViewModel: UpdaterViewModel,
+         whisperState: WhisperState,
          container: ModelContainer,
          enhancementService: AIEnhancementService,
          aiService: AIService,
-         hotkeyManager: HotkeyManager) {
+         hotkeyManager: HotkeyManager,
+         languageManager: LanguageManager) {
         self.isMenuBarOnly = UserDefaults.standard.bool(forKey: "IsMenuBarOnly")
         self.updaterViewModel = updaterViewModel
         self.whisperState = whisperState
@@ -32,6 +34,7 @@ class MenuBarManager: ObservableObject {
         self.enhancementService = enhancementService
         self.aiService = aiService
         self.hotkeyManager = hotkeyManager
+        self.languageManager = languageManager
         updateAppActivationPolicy()
     }
     
@@ -58,8 +61,8 @@ class MenuBarManager: ObservableObject {
         }
     }
     
-    func openMainWindowAndNavigate(to destination: String) {
-        print("MenuBarManager: Navigating to \(destination)")
+    func openMainWindowAndNavigate(to destination: ViewType) {
+        print("MenuBarManager: Navigating to \(destination.rawValue)")
         
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
@@ -94,9 +97,9 @@ class MenuBarManager: ObservableObject {
                 NotificationCenter.default.post(
                     name: .navigateToDestination,
                     object: nil,
-                    userInfo: ["destination": destination]
+                    userInfo: ["destination": destination.rawValue]
                 )
-                print("MenuBarManager: Posted navigation notification for \(destination)")
+                print("MenuBarManager: Posted navigation notification for \(destination.rawValue)")
             }
         }
     }
@@ -112,7 +115,9 @@ class MenuBarManager: ObservableObject {
             .environmentObject(updaterViewModel)
             .environmentObject(enhancementService)
             .environmentObject(aiService)
+            .environmentObject(languageManager)
             .environment(\.modelContext, ModelContext(container))
+            .environment(\.locale, languageManager.locale)
         
         // Create window using WindowManager
         let hostingView = NSHostingView(rootView: contentView)
@@ -143,4 +148,3 @@ class WindowDelegate: NSObject, NSWindowDelegate {
         onClose()
     }
 }
-

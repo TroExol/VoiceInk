@@ -10,6 +10,7 @@ struct SettingsView: View {
     @EnvironmentObject private var hotkeyManager: HotkeyManager
     @EnvironmentObject private var whisperState: WhisperState
     @EnvironmentObject private var enhancementService: AIEnhancementService
+    @EnvironmentObject private var languageManager: LanguageManager
     @StateObject private var deviceManager = AudioDeviceManager.shared
     @ObservedObject private var mediaController = MediaController.shared
     @ObservedObject private var playbackController = PlaybackController.shared
@@ -65,6 +66,30 @@ struct SettingsView: View {
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+
+
+                SettingsSection(
+                    icon: "globe",
+                    title: "Interface Language",
+                    subtitle: "Switch between available languages"
+                ) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack {
+                            Text("Language")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Picker("", selection: $languageManager.selectedLanguage) {
+                                ForEach(AppLanguage.allCases) { language in
+                                    Text(language.displayName).tag(language)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .labelsHidden()
+                            .frame(width: 180)
+                        }
                     }
                 }
 
@@ -322,8 +347,10 @@ struct SettingsView: View {
                         Toggle("Hide Dock Icon (Menu Bar Only)", isOn: $menuBarManager.isMenuBarOnly)
                             .toggleStyle(.switch)
                         
-                        LaunchAtLogin.Toggle()
-                            .toggleStyle(.switch)
+                        LaunchAtLogin.Toggle {
+                            Text("Launch at Login")
+                        }
+                        .toggleStyle(.switch)
 
                         Toggle("Enable automatic update checks", isOn: $autoUpdateCheck)
                             .toggleStyle(.switch)
@@ -425,7 +452,7 @@ struct SettingsView: View {
     
     @ViewBuilder
     private func hotkeyView(
-        title: String,
+        title: LocalizedStringKey,
         binding: Binding<HotkeyManager.HotkeyOption>,
         shortcutName: KeyboardShortcuts.Name,
         isRemovable: Bool = false,
@@ -491,12 +518,12 @@ struct SettingsView: View {
 
 struct SettingsSection<Content: View>: View {
     let icon: String
-    let title: String
-    let subtitle: String
+    let title: LocalizedStringKey
+    let subtitle: LocalizedStringKey
     let content: Content
     var showWarning: Bool = false
     
-    init(icon: String, title: String, subtitle: String, showWarning: Bool = false, @ViewBuilder content: () -> Content) {
+    init(icon: String, title: LocalizedStringKey, subtitle: LocalizedStringKey, showWarning: Bool = false, @ViewBuilder content: () -> Content) {
         self.icon = icon
         self.title = title
         self.subtitle = subtitle

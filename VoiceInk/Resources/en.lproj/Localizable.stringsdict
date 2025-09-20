@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>history.deleteConfirmationMessage</key>
+    <dict>
+        <key>NSStringLocalizedFormatKey</key>
+        <string>This action cannot be undone. Are you sure you want to delete %#@COUNT@?</string>
+        <key>COUNT</key>
+        <dict>
+            <key>NSStringFormatSpecTypeKey</key>
+            <string>NSStringPluralRuleType</string>
+            <key>NSStringFormatValueTypeKey</key>
+            <string>%ld</string>
+            <key>one</key>
+            <string>%ld item</string>
+            <key>other</key>
+            <string>%ld items</string>
+        </dict>
+    </dict>
+    <key>history.selectionCount</key>
+    <dict>
+        <key>NSStringLocalizedFormatKey</key>
+        <string>%#@COUNT@</string>
+        <key>COUNT</key>
+        <dict>
+            <key>NSStringFormatSpecTypeKey</key>
+            <string>NSStringPluralRuleType</string>
+            <key>NSStringFormatValueTypeKey</key>
+            <string>%ld</string>
+            <key>one</key>
+            <string>%ld selected</string>
+            <key>other</key>
+            <string>%ld selected</string>
+        </dict>
+    </dict>
+</dict>
+</plist>

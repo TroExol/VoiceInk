@@ -16,9 +16,10 @@ struct ModelSettingsView: View {
                     .font(.headline)
                 
                 InfoTip(
-                    title: "Output Format Guide",
-                    message: "Unlike GPT, Voice Models(whisper) follows the style of your prompt rather than instructions. Use examples of your desired output format instead of commands.",
-                    learnMoreURL: "https://cookbook.openai.com/examples/whisper_prompting_guide#comparison-with-gpt-prompting"
+                    title: "models.infotip.outputFormatTitle",
+                    message: "models.infotip.outputFormatMessage",
+                    learnMoreURL: "https://cookbook.openai.com/examples/whisper_prompting_guide#comparison-with-gpt-prompting",
+                    learnMoreText: "Learn More"
                 )
                 
                 Spacer()
@@ -74,8 +75,8 @@ struct ModelSettingsView: View {
                 .toggleStyle(.switch)
                 
                 InfoTip(
-                    title: "Trailing Space",
-                    message: "Automatically add a space after pasted text. Useful for space-delimited languages."
+                    title: "models.infotip.trailingSpaceTitle",
+                    message: "models.infotip.trailingSpaceMessage"
                 )
             }
 
@@ -86,8 +87,8 @@ struct ModelSettingsView: View {
                 .toggleStyle(.switch)
                 
                 InfoTip(
-                    title: "Automatic Text Formatting",
-                    message: "Apply intelligent text formatting to break large block of text into paragraphs."
+                    title: "models.infotip.autoFormattingTitle",
+                    message: "models.infotip.autoFormattingMessage"
                 )
             }
 
@@ -98,8 +99,8 @@ struct ModelSettingsView: View {
                 .toggleStyle(.switch)
                 
                 InfoTip(
-                    title: "Voice Activity Detection",
-                    message: "Detect speech segments and filter out silence to improve accuracy of local models."
+                    title: "models.infotip.vadTitle",
+                    message: "models.infotip.vadMessage"
                 )
             }
 

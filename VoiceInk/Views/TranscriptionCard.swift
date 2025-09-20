@@ -150,21 +150,21 @@ struct TranscriptionCard: View {
                         .padding(.vertical, 8)
                     
                     VStack(alignment: .leading, spacing: 10) {
-                        metadataRow(icon: "hourglass", label: "Audio Duration", value: formatTiming(transcription.duration))
+                        metadataRow(icon: "hourglass", labelKey: "Audio Duration", value: formatTiming(transcription.duration))
                         if let modelName = transcription.transcriptionModelName {
-                            metadataRow(icon: "cpu.fill", label: "Transcription Model", value: modelName)
+                            metadataRow(icon: "cpu.fill", labelKey: "Transcription Model", value: modelName)
                         }
                         if let aiModel = transcription.aiEnhancementModelName {
-                            metadataRow(icon: "sparkles", label: "Enhancement Model", value: aiModel)
+                            metadataRow(icon: "sparkles", labelKey: "Enhancement Model", value: aiModel)
                         }
                         if let promptName = transcription.promptName {
-                            metadataRow(icon: "text.bubble.fill", label: "Prompt Used", value: promptName)
+                            metadataRow(icon: "text.bubble.fill", labelKey: "Prompt Used", value: promptName)
                         }
                         if let duration = transcription.transcriptionDuration {
-                            metadataRow(icon: "clock.fill", label: "Transcription Time", value: formatTiming(duration))
+                            metadataRow(icon: "clock.fill", labelKey: "Transcription Time", value: formatTiming(duration))
                         }
                         if let duration = transcription.enhancementDuration {
-                            metadataRow(icon: "clock.fill", label: "Enhancement Time", value: formatTiming(duration))
+                            metadataRow(icon: "clock.fill", labelKey: "Enhancement Time", value: formatTiming(duration))
                         }
                     }
                 }
@@ -217,14 +217,14 @@ struct TranscriptionCard: View {
         return String(format: "%dm %.0fs", minutes, seconds)
     }
     
-    private func metadataRow(icon: String, label: String, value: String) -> some View {
+    private func metadataRow(icon: String, labelKey: LocalizedStringKey, value: String) -> some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 13, weight: .medium))
                 .foregroundColor(.secondary)
                 .frame(width: 20, alignment: .center)
             
-            Text(label)
+            Text(labelKey)
                 .font(.system(size: 13, weight: .medium))
                 .foregroundColor(.primary)
             Spacer()

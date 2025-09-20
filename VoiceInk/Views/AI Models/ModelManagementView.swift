@@ -9,6 +9,19 @@ enum ModelFilter: String, CaseIterable, Identifiable {
     case cloud = "Cloud"
     case custom = "Custom"
     var id: String { self.rawValue }
+
+    var localizationKey: String {
+        switch self {
+        case .recommended: return "models.filter.recommended"
+        case .local: return "models.filter.local"
+        case .cloud: return "models.filter.cloud"
+        case .custom: return "models.filter.custom"
+        }
+    }
+
+    var localizedTitle: LocalizedStringKey {
+        LocalizedStringKey(localizationKey)
+    }
 }
 
 struct ModelManagementView: View {
@@ -81,7 +94,7 @@ struct ModelManagementView: View {
                                 isShowingSettings = false
                             }
                         }) {
-                            Text(filter.rawValue)
+                            Text(filter.localizedTitle)
                                 .font(.system(size: 14, weight: selectedFilter == filter ? .semibold : .medium))
                                 .foregroundColor(selectedFilter == filter ? .primary : .primary.opacity(0.7))
                                 .padding(.horizontal, 16)
@@ -178,11 +191,12 @@ struct ModelManagementView: View {
                             .buttonStyle(.plain)
 
                             InfoTip(
-                                title: "Import local Whisper models",
-                                message: "Add a custom fine-tuned whisper model to use with VoiceInk. Select the downloaded .bin file.",
-                                learnMoreURL: "https://tryvoiceink.com/docs/custom-local-whisper-models"
+                                title: "models.info.importLocalTitle",
+                                message: "models.info.importLocalMessage",
+                                learnMoreURL: "https://tryvoiceink.com/docs/custom-local-whisper-models",
+                                learnMoreText: "Learn More"
                             )
-                            .help("Read more about custom local models")
+                            .help(String(localized: "models.info.importLocalHelp"))
                         }
                     }
                     

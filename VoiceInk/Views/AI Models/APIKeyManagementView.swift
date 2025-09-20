@@ -474,7 +474,7 @@ struct APIKeyManagementView: View {
                         }
 
                         Stepper(value: $providerAttempts, in: 1...10) {
-                            Text("Max attempts: \(providerAttempts)")
+                            Text(String(format: NSLocalizedString("enhancement.maxAttempts", comment: "Max attempts label in enhancement settings"), providerAttempts))
                         }
 
                         Text("Each attempt times out after interval × remaining attempts.")
