@@ -81,21 +81,15 @@ struct TranscriptionHistoryView: View {
                                         onDelete: { deleteTranscription(transcription) },
                                         onToggleSelection: { toggleSelection(transcription) }
                                     )
-                                    .id(transcription) // Using the object as its own ID
+                                    .id(transcription.id)
                                     .onTapGesture {
-                                        withAnimation(.easeInOut(duration: 0.25)) {
-                                            if expandedTranscription == transcription {
-                                                expandedTranscription = nil
-                                            } else {
-                                                expandedTranscription = transcription
-                                            }
-                                        }
+                                        toggleExpansion(for: transcription)
                                     }
                                 }
-                                
-                                if hasMoreContent {
-                                    Button(action: {
-                                        loadMoreContent()
+
+                            if hasMoreContent {
+                                Button(action: {
+                                    loadMoreContent()
                                     }) {
                                         HStack(spacing: 8) {
                                             if isLoading {
@@ -114,16 +108,13 @@ struct TranscriptionHistoryView: View {
                                     .padding(.top, 12)
                                 }
                             }
-                            .animation(.easeInOut(duration: 0.3), value: expandedTranscription)
                             .padding(24)
                             // Add bottom padding to ensure content is not hidden by the toolbar when visible
                             .padding(.bottom, !selectedTranscriptions.isEmpty ? 60 : 0)
                         }
                         .padding(.vertical, 16)
                         .onChange(of: expandedTranscription) { old, new in
-                            if let transcription = new {
-                                proxy.scrollTo(transcription, anchor: nil)
-                            }
+                            handleExpansionChange(oldValue: old, newValue: new, proxy: proxy)
                         }
                     }
                 }
@@ -188,7 +179,45 @@ struct TranscriptionHistoryView: View {
             }
         }
     }
-    
+
+    private func toggleExpansion(for transcription: Transcription) {
+        let willCollapse = expandedTranscription == transcription
+
+        withAnimation(.easeInOut(duration: 0.25)) {
+            expandedTranscription = willCollapse ? nil : transcription
+        }
+    }
+
+    private func handleExpansionChange(oldValue: Transcription?, newValue: Transcription?, proxy: ScrollViewProxy) {
+        switch (oldValue, newValue) {
+        case (_, let new?):
+            // Wait a bit so the expanded card’s new height is known, then align it towards the top.
+            let delay = DispatchTime.now() + .milliseconds(180)
+            DispatchQueue.main.asyncAfter(deadline: delay) {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    proxy.scrollTo(new.id, anchor: .top)
+                }
+            }
+        case (let old?, nil):
+            // Collapse: after layout settles, bring the collapsed card back into view.
+            let delay = DispatchTime.now() + .milliseconds(320)
+            DispatchQueue.main.asyncAfter(deadline: delay) {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    proxy.scrollTo(old.id, anchor: .top)
+                }
+            }
+
+            let reinforcement = DispatchTime.now() + .milliseconds(600)
+            DispatchQueue.main.asyncAfter(deadline: reinforcement) {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    proxy.scrollTo(old.id, anchor: .top)
+                }
+            }
+        default:
+            break
+        }
+    }
+
     private var searchBar: some View {
         HStack {
             Image(systemName: "magnifyingglass")
