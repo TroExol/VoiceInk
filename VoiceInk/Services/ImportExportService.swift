@@ -136,28 +136,20 @@ class ImportExportService {
                     if let url = savePanel.url {
                         do {
                             try jsonData.write(to: url)
-                            let messageFormat = languageManager.localizedString(
+                            let message = languageManager.localizedString(
                                 for: "alerts.exportSettings.successMessage",
-                                defaultValue: "Your settings have been successfully exported to %@."
-                            )
-                            let message = String(
-                                format: messageFormat,
-                                locale: languageManager.locale,
-                                url.lastPathComponent
+                                defaultValue: "Your settings have been successfully exported to %@.",
+                                arguments: url.lastPathComponent
                             )
                             self.showAlert(
                                 title: languageManager.localizedString(for: "Export Successful"),
                                 message: message
                             )
                         } catch {
-                            let messageFormat = languageManager.localizedString(
+                            let message = languageManager.localizedString(
                                 for: "alerts.exportSettings.writeError",
-                                defaultValue: "Could not save settings to file: %@."
-                            )
-                            let message = String(
-                                format: messageFormat,
-                                locale: languageManager.locale,
-                                error.localizedDescription
+                                defaultValue: "Could not save settings to file: %@.",
+                                arguments: error.localizedDescription
                             )
                             self.showAlert(
                                 title: languageManager.localizedString(for: "Export Error"),
@@ -173,14 +165,10 @@ class ImportExportService {
                 }
             }
         } catch {
-            let messageFormat = languageManager.localizedString(
+            let message = languageManager.localizedString(
                 for: "alerts.exportSettings.encodeError",
-                defaultValue: "Could not encode settings to JSON: %@."
-            )
-            let message = String(
-                format: messageFormat,
-                locale: languageManager.locale,
-                error.localizedDescription
+                defaultValue: "Could not encode settings to JSON: %@.",
+                arguments: error.localizedDescription
             )
             self.showAlert(title: languageManager.localizedString(for: "Export Error"), message: message)
         }
@@ -213,15 +201,10 @@ class ImportExportService {
                     let importedSettings = try decoder.decode(VoiceInkExportedSettings.self, from: jsonData)
 
                     if importedSettings.version != self.currentSettingsVersion {
-                        let messageFormat = languageManager.localizedString(
+                        let message = languageManager.localizedString(
                             for: "alerts.importSettings.versionMismatch",
-                            defaultValue: "The imported settings file (version %@) is from a different version than your application (version %@). Proceeding with import, but be aware of potential incompatibilities."
-                        )
-                        let message = String(
-                            format: messageFormat,
-                            locale: languageManager.locale,
-                            importedSettings.version,
-                            self.currentSettingsVersion
+                            defaultValue: "The imported settings file (version %@) is from a different version than your application (version %@). Proceeding with import, but be aware of potential incompatibilities.",
+                            arguments: importedSettings.version, self.currentSettingsVersion
                         )
                         self.showAlert(title: languageManager.localizedString(for: "Version Mismatch"), message: message)
                     }
@@ -332,14 +315,10 @@ class ImportExportService {
                     self.showRestartAlert(importedFileName: url.lastPathComponent)
 
                 } catch {
-                    let messageFormat = languageManager.localizedString(
+                    let message = languageManager.localizedString(
                         for: "alerts.importSettings.generalError",
-                        defaultValue: "Error importing settings: %@. The file might be corrupted or not in the correct format."
-                    )
-                    let message = String(
-                        format: messageFormat,
-                        locale: languageManager.locale,
-                        error.localizedDescription
+                        defaultValue: "Error importing settings: %@. The file might be corrupted or not in the correct format.",
+                        arguments: error.localizedDescription
                     )
                     self.showAlert(title: languageManager.localizedString(for: "Import Error"), message: message)
                 }
@@ -368,14 +347,10 @@ class ImportExportService {
             let alert = NSAlert()
             let languageManager = LanguageManager.shared
             alert.messageText = languageManager.localizedString(for: "Import Successful")
-            let successFormat = languageManager.localizedString(
+            let successMessage = languageManager.localizedString(
                 for: "alerts.importSettings.successMessage",
-                defaultValue: "Settings imported successfully from %@. All settings (including general app settings) have been applied."
-            )
-            let successMessage = String(
-                format: successFormat,
-                locale: languageManager.locale,
-                importedFileName
+                defaultValue: "Settings imported successfully from %@. All settings (including general app settings) have been applied.",
+                arguments: importedFileName
             )
             let reconfigureMessage = languageManager.localizedString(for: "alerts.importSettings.reconfigure")
             let restartMessage = languageManager.localizedString(for: "alerts.importSettings.restartRecommendation")
