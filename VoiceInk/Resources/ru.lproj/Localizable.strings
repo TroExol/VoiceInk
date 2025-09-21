@@ -406,6 +406,11 @@
 "Start Transcription" = "Начать транскрипцию";
 "Start recording to see your metrics" = "Начните запись, чтобы увидеть метрики";
 "Start with a Predefined Template" = "Начать с готового шаблона";
+"Default system prompt for improving clarity and accuracy of transcriptions" = "Системный шаблон по умолчанию для повышения ясности и точности транскрипций";
+"Casual chat-style formatting" = "Неформальное оформление в стиле чата";
+"Template for converting casual messages into professional email format" = "Шаблон для преобразования неформальных сообщений в профессиональный формат письма";
+"For Vibe coders and AI chat. Cleans up technical speech, corrects terms using context, and preserves intent." = "Для Vibe Coding и диалогов с ИИ. Очищает техническую речь, корректирует термины по контексту и сохраняет исходный замысел.";
+"Rewrites transcriptions with enhanced clarity, improved sentence structure, and rhythmic flow while preserving original meaning." = "Переписывает транскрипции, повышая ясность, улучшая структуру предложений и ритмику при сохранении исходного смысла.";
 "Successfully deleted (cleanupResult.deletedCount) audio files." = "Успешно удалено (cleanupResult.deletedCount) аудиофайлов.";
 "Successfully deleted (cleanupResult.deletedCount) audio files. Failed to delete (cleanupResult.errorCount) files." = "Удалено (cleanupResult.deletedCount) аудиофайлов. Не удалось удалить (cleanupResult.errorCount) файлов.";
 "Supported formats: WAV, MP3, M4A, AIFF, MP4, MOV" = "Поддерживаемые форматы: WAV, MP3, M4A, AIFF, MP4, MOV";

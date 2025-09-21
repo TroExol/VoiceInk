@@ -67,7 +67,10 @@ enum PromptTemplates {
                 After cleaning <TRANSCRIPT>, return only the cleaned version without any additional text, explanations, or tags. The output should be ready for direct use without further editing.
                 """,
                 icon: .sealedFill,
-                description: "Default system prompt for improving clarity and accuracy of transcriptions"
+                description: NSLocalizedString(
+                    "Default system prompt for improving clarity and accuracy of transcriptions",
+                    comment: "Template description for the default system prompt"
+                )
             ),
             TemplatePrompt(
                 id: UUID(),
@@ -110,7 +113,10 @@ enum PromptTemplates {
                         3. Third task"
                 """,
                 icon: .chatFill,
-                description: "Casual chat-style formatting"
+                description: NSLocalizedString(
+                    "Casual chat-style formatting",
+                    comment: "Template description for chat-style formatting"
+                )
             ),
             
             TemplatePrompt(
@@ -171,7 +177,10 @@ enum PromptTemplates {
                 [Your Name]"
                 """,
                 icon: .emailFill,
-                description: "Template for converting casual messages into professional email format"
+                description: NSLocalizedString(
+                    "Template for converting casual messages into professional email format",
+                    comment: "Template description for converting casual messages into professional emails"
+                )
             ),
             TemplatePrompt(
                 id: UUID(),
@@ -199,7 +208,10 @@ enum PromptTemplates {
                 After cleaning <TRANSCRIPT>, return only the cleaned version without any additional text, explanations, or tags. The output should be ready for direct use without further editing.
                 """,
                 icon: .codeFill,
-                description: "For Vibe coders and AI chat. Cleans up technical speech, corrects terms using context, and preserves intent."
+                description: NSLocalizedString(
+                    "For Vibe coders and AI chat. Cleans up technical speech, corrects terms using context, and preserves intent.",
+                    comment: "Template description for Vibe Coding prompt"
+                )
             ),
 
             TemplatePrompt(
@@ -483,7 +495,10 @@ enum PromptTemplates {
                 After rewriting the <TRANSCRIPT> text, return only the enhanced version without any additional text, explanations, or tags. The output should be ready for direct use without further editing.
                 """,
                 icon: .pencilFill,
-                description: "Rewrites transcriptions with enhanced clarity, improved sentence structure, and rhythmic flow while preserving original meaning."
+                description: NSLocalizedString(
+                    "Rewrites transcriptions with enhanced clarity, improved sentence structure, and rhythmic flow while preserving original meaning.",
+                    comment: "Template description for rewrite prompt"
+                )
             )
         ]
     }
