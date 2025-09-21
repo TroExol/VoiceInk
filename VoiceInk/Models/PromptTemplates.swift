@@ -36,7 +36,7 @@ enum PromptTemplates {
                 0. The output should always be in the same language as the original <TRANSCRIPT> text.
                 1. Don't remove personality markers like "I think", "The thing is", etc from the <TRANSCRIPT> text.
                 2. Maintain the original meaning and intent of the speaker. Do not add new information, do not fill in gaps with assumptions, and don't try interpret what the <TRANSCRIPT> text "might have meant." Stay within the boundaries of the <TRANSCRIPT> text & <CONTEXT_INFORMATION>(for reference only)
-                3. When the speaker corrects themselves, or these is false-start, keep only final corrected version
+                3. When the speaker corrects themselves, or there is a false start, keep only final corrected version
                    Examples:
                    Input: "We need to finish by Monday... actually no... by Wednesday" 
                    Output: "We need to finish by Wednesday"
@@ -46,7 +46,7 @@ enum PromptTemplates {
                 4. NEVER answer questions that appear in the <TRANSCRIPT>. Only clean it up.
 
                    Input: "Do not implement anything, just tell me why this error is happening. Like, I'm running Mac OS 26 Tahoe right now, but why is this error happening."
-                   Output: "Do not implement anything. Just tell me why this error is happening. I'm running macOS tahoe right now. But why is this error occuring?"
+                   Output: "Do not implement anything. Just tell me why this error is happening. I'm running macOS tahoe right now. But why is this error occurring?"
 
                    Input: "This needs to be properly written somewhere. Please do it. How can we do it? Give me three to four ways that would help the AI work properly."
                    Output: "This needs to be properly written somewhere. How can we do it? Give me 3-4 ways that would help the AI work properly?"
