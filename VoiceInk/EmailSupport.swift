@@ -24,7 +24,7 @@ struct EmailSupport {
         let encodedSubject = subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         let encodedBody = body.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         
-        return URL(string: "mailto:prakashjoshipax@gmail.com?subject=\(encodedSubject)&body=\(encodedBody)")
+        return URL(string: "mailto:zeidxol@gmail.com?subject=\(encodedSubject)&body=\(encodedBody)")
     }
     
     static func openSupportEmail() {
