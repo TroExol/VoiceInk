@@ -109,13 +109,18 @@ struct OnboardingView: View {
 
 // MARK: - Supporting Views
 struct TypewriterRoles: View {
-    private let roles = [
-        String(localized: "Your Writing Assistant"),
-        String(localized: "Your Vibe-Coding Assistant"),
-        String(localized: "Works Everywhere on Mac with a click"),
-        String(localized: "100% offline & private"),
-    ]
-    
+    @EnvironmentObject private var languageManager: LanguageManager
+    @State private var animationToken = UUID()
+
+    private var roles: [String] {
+        [
+            languageManager.localizedString(for: "Your Writing Assistant"),
+            languageManager.localizedString(for: "Your Vibe-Coding Assistant"),
+            languageManager.localizedString(for: "Works Everywhere on Mac with a click"),
+            languageManager.localizedString(for: "100% offline & private"),
+        ]
+    }
+
     @State private var displayedText = ""
     @State private var currentIndex = 0
     @State private var showCursor = true
@@ -173,60 +178,80 @@ struct TypewriterRoles: View {
                 showCursor.toggle()
             }
         }
+        .onChange(of: languageManager.selectedLanguage) { _ in
+            resetAnimationForSelectedLanguage()
+        }
     }
-    
+
     private func startTypingAnimation() {
+        let token = animationToken
         guard currentIndex < roles.count else { return }
         let targetText = roles[currentIndex]
         isTyping = true
-        
+
         // Type out the text
         var charIndex = 0
         func typeNextCharacter() {
+            guard token == animationToken else { return }
             guard charIndex < targetText.count else {
                 // Typing complete, pause then delete
                 isTyping = false
                 DispatchQueue.main.asyncAfter(deadline: .now() + pauseDuration) {
+                    guard token == animationToken else { return }
                     startDeletingAnimation()
                 }
                 return
             }
-            
+
             let nextChar = String(targetText[targetText.index(targetText.startIndex, offsetBy: charIndex)])
             displayedText += nextChar
             charIndex += 1
-            
+
             // Schedule next character
             DispatchQueue.main.asyncAfter(deadline: .now() + typingSpeed) {
+                guard token == animationToken else { return }
                 typeNextCharacter()
             }
         }
-        
+
         typeNextCharacter()
     }
-    
+
     private func startDeletingAnimation() {
+        let token = animationToken
         isDeleting = true
-        
+
         func deleteNextCharacter() {
+            guard token == animationToken else { return }
             guard !displayedText.isEmpty else {
                 isDeleting = false
                 currentIndex = (currentIndex + 1) % roles.count
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    guard token == animationToken else { return }
                     startTypingAnimation()
                 }
                 return
             }
-            
+
             displayedText.removeLast()
-            
+
             // Schedule next deletion
             DispatchQueue.main.asyncAfter(deadline: .now() + deleteSpeed) {
+                guard token == animationToken else { return }
                 deleteNextCharacter()
             }
         }
-        
+
         deleteNextCharacter()
+    }
+
+    private func resetAnimationForSelectedLanguage() {
+        animationToken = UUID()
+        displayedText = ""
+        currentIndex = 0
+        isTyping = false
+        isDeleting = false
+        startTypingAnimation()
     }
 }
 
