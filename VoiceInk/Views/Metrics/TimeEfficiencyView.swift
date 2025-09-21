@@ -176,7 +176,9 @@ struct TimeEfficiencyView: View {
         let formatter = DateComponentsFormatter()
         formatter.allowedUnits = [.hour, .minute, .second]
         formatter.unitsStyle = .abbreviated
-        formatter.locale = locale
+        var calendar = Calendar.current
+        calendar.locale = locale
+        formatter.calendar = calendar
         return formatter.string(from: duration) ?? ""
     }
 }
@@ -194,7 +196,9 @@ struct TimeBlockView: View {
         let formatter = DateComponentsFormatter()
         formatter.allowedUnits = [.hour, .minute, .second]
         formatter.unitsStyle = .abbreviated
-        formatter.locale = locale
+        var calendar = Calendar.current
+        calendar.locale = locale
+        formatter.calendar = calendar
         return formatter.string(from: duration) ?? ""
     }
     
