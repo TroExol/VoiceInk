@@ -41,7 +41,7 @@ final class LanguageManager: ObservableObject {
            let language = AppLanguage(rawValue: storedValue) {
             selectedLanguage = language
         } else {
-            selectedLanguage = .english
+            selectedLanguage = .russian
         }
 
         Bundle.setLanguage(selectedLanguage.rawValue)
