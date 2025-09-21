@@ -167,15 +167,10 @@ class ImportExportService {
                     }
                 } else {
                     self.showAlert(
-                        title: languageManager.localizedString(for: "Export Error"),
-                        message: languageManager.localizedString(for: "alerts.exportSettings.missingURL", defaultValue: "Could not determine a file location for your export.")
+                        title: languageManager.localizedString(for: "Export Canceled"),
+                        message: languageManager.localizedString(for: "The settings export operation was canceled.")
                     )
                 }
-            } else {
-                self.showAlert(
-                    title: languageManager.localizedString(for: "Export Canceled"),
-                    message: languageManager.localizedString(for: "The settings export operation was canceled.")
-                )
             }
         } catch {
             let messageFormat = languageManager.localizedString(
