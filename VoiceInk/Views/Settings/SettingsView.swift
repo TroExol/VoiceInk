@@ -287,7 +287,7 @@ struct SettingsView: View {
                             Text("Mute system audio during recording")
                         }
                         .toggleStyle(.switch)
-                        .help("Automatically mute system audio when recording starts and restore when recording stops")
+                        .localizedHelp("Automatically mute system audio when recording starts and restore when recording stops")
 
                         Toggle(isOn: Binding(
                             get: { UserDefaults.standard.bool(forKey: "preserveTranscriptInClipboard") },
@@ -296,7 +296,7 @@ struct SettingsView: View {
                             Text("Preserve transcript in clipboard")
                         }
                         .toggleStyle(.switch)
-                        .help("Keep the transcribed text in clipboard instead of restoring the original clipboard content")
+                        .localizedHelp("Keep the transcribed text in clipboard instead of restoring the original clipboard content")
 
                     }
                 }
@@ -551,7 +551,7 @@ struct SettingsSection<Content: View>: View {
                     Spacer()
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundColor(.red)
-                        .help("Permission required for VoiceInk to function properly")
+                        .localizedHelp("Permission required for VoiceInk to function properly")
                 }
             }
             

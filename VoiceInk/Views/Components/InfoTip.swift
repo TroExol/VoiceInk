@@ -2,11 +2,13 @@ import SwiftUI
 
 /// A reusable info tip component that displays helpful information in a popover
 struct InfoTip: View {
+    @EnvironmentObject private var languageManager: LanguageManager
+
     // Content configuration
-    var title: LocalizedStringKey
-    var message: LocalizedStringKey
+    var titleKey: String
+    var messageKey: String
     var learnMoreLink: URL?
-    var learnMoreText: LocalizedStringKey = "Learn More"
+    var learnMoreTextKey: String = "Learn More"
     
     // Appearance customization
     var iconName: String = "info.circle.fill"
@@ -25,14 +27,18 @@ struct InfoTip: View {
             .padding(5)
             .contentShape(Rectangle())
             .popover(isPresented: $isShowingTip) {
+                let title = languageManager.localizedString(for: titleKey)
+                let message = languageManager.localizedString(for: messageKey)
+                let learnMoreText = languageManager.localizedString(for: learnMoreTextKey)
+
                 VStack(alignment: .leading, spacing: 10) {
                     Text(title)
                         .font(.headline)
-                    
+
                     Text(message)
                         .frame(width: width, alignment: .leading)
                         .padding(.bottom, learnMoreLink != nil ? 5 : 0)
-                    
+
                     if let url = learnMoreLink {
                         Button(action: {
                             NSWorkspace.shared.open(url)
@@ -43,6 +49,8 @@ struct InfoTip: View {
                     }
                 }
                 .padding()
+                .environmentObject(languageManager)
+                .environment(\.locale, languageManager.locale)
             }
             .onTapGesture {
                 isShowingTip.toggle()
@@ -54,17 +62,34 @@ struct InfoTip: View {
 
 extension InfoTip {
     /// Creates an InfoTip with just title and message
-    init(title: LocalizedStringKey, message: LocalizedStringKey) {
-        self.title = title
-        self.message = message
+    init(title: String, message: String) {
+        self.titleKey = title
+        self.messageKey = message
         self.learnMoreLink = nil
     }
-    
+
     /// Creates an InfoTip with a learn more link
-    init(title: LocalizedStringKey, message: LocalizedStringKey, learnMoreURL: String, learnMoreText: LocalizedStringKey = "Learn More") {
-        self.title = title
-        self.message = message
+    init(title: String, message: String, learnMoreURL: String, learnMoreText: String = "Learn More") {
+        self.titleKey = title
+        self.messageKey = message
         self.learnMoreLink = URL(string: learnMoreURL)
-        self.learnMoreText = learnMoreText
+        self.learnMoreTextKey = learnMoreText
+    }
+}
+
+private struct LocalizedHelpModifier: ViewModifier {
+    @EnvironmentObject private var languageManager: LanguageManager
+    let key: String
+    let defaultValue: String?
+
+    func body(content: Content) -> some View {
+        let text = languageManager.localizedString(for: key, defaultValue: defaultValue)
+        return content.help(text)
+    }
+}
+
+extension View {
+    func localizedHelp(_ key: String, defaultValue: String? = nil) -> some View {
+        modifier(LocalizedHelpModifier(key: key, defaultValue: defaultValue))
     }
 }

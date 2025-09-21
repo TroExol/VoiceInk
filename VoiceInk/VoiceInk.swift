@@ -55,7 +55,7 @@ struct VoiceInkApp: App {
         }
         
         // Initialize services with proper sharing of instances
-        let languageManager = LanguageManager()
+        let languageManager = LanguageManager.shared
         _languageManager = StateObject(wrappedValue: languageManager)
 
         let aiService = AIService()

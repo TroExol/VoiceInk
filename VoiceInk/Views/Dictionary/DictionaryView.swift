@@ -121,7 +121,7 @@ struct DictionaryView: View {
                 }
                 .buttonStyle(.borderless)
                 .disabled(newWord.isEmpty)
-                .help("Add word")
+                .localizedHelp("Add word")
             }
             
             // Words List
@@ -219,7 +219,7 @@ struct DictionaryItemView: View {
                     .contentTransition(.symbolEffect(.replace))
             }
             .buttonStyle(.borderless)
-            .help("Remove word")
+            .localizedHelp("Remove word")
             .onHover { hover in
                 withAnimation(.easeInOut(duration: 0.2)) {
                     isHovered = hover

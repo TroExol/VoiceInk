@@ -71,7 +71,7 @@ struct WordReplacementView: View {
                     Toggle("Enable", isOn: $manager.isEnabled)
                         .toggleStyle(.switch)
                         .labelsHidden()
-                        .help("Enable automatic word replacement after transcription")
+                        .localizedHelp("Enable automatic word replacement after transcription")
                 }
             }
             
@@ -87,7 +87,7 @@ struct WordReplacementView: View {
                         Image(systemName: "plus")
                     }
                     .buttonStyle(.borderless)
-                    .help("Add new replacement")
+                    .localizedHelp("Add new replacement")
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 8)
@@ -390,7 +390,7 @@ struct ReplacementRow: View {
                     .font(.system(size: 16))
             }
             .buttonStyle(.borderless)
-            .help("Edit replacement")
+            .localizedHelp("Edit replacement")
             
             // Delete Button
             Button(action: onDelete) {
@@ -400,7 +400,7 @@ struct ReplacementRow: View {
                     .font(.system(size: 16))
             }
             .buttonStyle(.borderless)
-            .help("Remove replacement")
+            .localizedHelp("Remove replacement")
         }
         .padding(.horizontal)
         .padding(.vertical, 8)

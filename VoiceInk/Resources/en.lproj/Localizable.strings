@@ -87,6 +87,14 @@
 "Add word replacements to automatically replace text." = "Add word replacements to automatically replace text.";
 "Add word to dictionary" = "Add word to dictionary";
 "Add word" = "Add word";
+"Add new replacement" = "Add new replacement";
+"Edit replacement" = "Edit replacement";
+"Enable automatic word replacement after transcription" = "Enable automatic word replacement after transcription";
+"Retranscribe this audio" = "Retranscribe this audio";
+"Add new prompt" = "Add new prompt";
+"Add custom emoji" = "Add custom emoji";
+"Refresh models" = "Refresh models";
+"Automatically pause active media playback during recordings and resume afterward." = "Automatically pause active media playback during recordings and resume afterward.";
 "Remove word" = "Remove word";
 "Add words so AI enhancement understands them correctly. (Requires AI enhancement)" = "Add words so AI enhancement understands them correctly. (Requires AI enhancement)";
 "Add words so AI enhancement understands them correctly" = "Add words so AI enhancement understands them correctly";

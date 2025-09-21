@@ -550,7 +550,7 @@ struct ConfigurationView: View {
                                                 Image(systemName: "arrow.clockwise")
                                             }
                                             .buttonStyle(.borderless)
-                                            .help("Refresh models")
+                                            .localizedHelp("Refresh models")
                                         }
                                         
                                         Spacer()

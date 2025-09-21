@@ -58,7 +58,7 @@ struct PromptSelectionGrid: View {
                         CustomPrompt.addNewButton {
                             onAddNewPrompt()
                         }
-                        .help("Add new prompt")
+                        .localizedHelp("Add new prompt")
                     }
                 }
                 .padding(.vertical, 12)

@@ -87,6 +87,14 @@
 "Add word replacements to automatically replace text." = "Добавьте замены слов для автоматической корректировки текста.";
 "Add word to dictionary" = "Добавить слово в словарь";
 "Add word" = "Добавить слово";
+"Add new replacement" = "Добавить новую замену";
+"Edit replacement" = "Редактировать замену";
+"Enable automatic word replacement after transcription" = "Включить автоматическую замену слов после транскрипции";
+"Retranscribe this audio" = "Перетранскрибировать это аудио";
+"Add new prompt" = "Добавить новый промпт";
+"Add custom emoji" = "Добавить свою эмодзи";
+"Refresh models" = "Обновить модели";
+"Automatically pause active media playback during recordings and resume afterward." = "Автоматически приостанавливать воспроизведение медиа во время записи и возобновлять после";
 "Remove word" = "Удалить слово";
 "Add words so AI enhancement understands them correctly. (Requires AI enhancement)" = "Добавьте слова, чтобы AI обработка понимала их корректно (требуется AI обработка)";
 "Add words so AI enhancement understands them correctly" = "Добавьте слова, чтобы AI обработка понимала их корректно";
