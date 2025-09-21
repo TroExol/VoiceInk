@@ -18,15 +18,14 @@ extension KeyboardShortcuts.Name {
 class HotkeyManager: ObservableObject {
     @Published var selectedHotkey1: HotkeyOption {
         didSet {
+            handleShortcutChange(oldValue: oldValue, newValue: selectedHotkey1, name: .toggleMiniRecorder)
             UserDefaults.standard.set(selectedHotkey1.rawValue, forKey: "selectedHotkey1")
             setupHotkeyMonitoring()
         }
     }
     @Published var selectedHotkey2: HotkeyOption {
         didSet {
-            if selectedHotkey2 == .none {
-                KeyboardShortcuts.setShortcut(nil, for: .toggleMiniRecorder2)
-            }
+            handleShortcutChange(oldValue: oldValue, newValue: selectedHotkey2, name: .toggleMiniRecorder2)
             UserDefaults.standard.set(selectedHotkey2.rawValue, forKey: "selectedHotkey2")
             setupHotkeyMonitoring()
         }
@@ -81,18 +80,20 @@ class HotkeyManager: ObservableObject {
         case none = "none"
         case rightOption = "rightOption"
         case leftOption = "leftOption"
-        case leftControl = "leftControl" 
+        case optionSpace = "optionSpace"
+        case leftControl = "leftControl"
         case rightControl = "rightControl"
         case fn = "fn"
         case rightCommand = "rightCommand"
         case rightShift = "rightShift"
         case custom = "custom"
-        
+
         var displayName: LocalizedStringKey {
             switch self {
             case .none: return "HotkeyOption.None"
             case .rightOption: return "HotkeyOption.RightOption"
             case .leftOption: return "HotkeyOption.LeftOption"
+            case .optionSpace: return "HotkeyOption.OptionSpace"
             case .leftControl: return "HotkeyOption.LeftControl"
             case .rightControl: return "HotkeyOption.RightControl"
             case .fn: return "HotkeyOption.Fn"
@@ -101,11 +102,12 @@ class HotkeyManager: ObservableObject {
             case .custom: return "HotkeyOption.Custom"
             }
         }
-        
+
         var keyCode: CGKeyCode? {
             switch self {
             case .rightOption: return 0x3D
             case .leftOption: return 0x3A
+            case .optionSpace: return nil
             case .leftControl: return 0x3B
             case .rightControl: return 0x3E
             case .fn: return 0x3F
@@ -114,12 +116,35 @@ class HotkeyManager: ObservableObject {
             case .custom, .none: return nil
             }
         }
-        
+
         var isModifierKey: Bool {
-            return self != .custom && self != .none
+            switch self {
+            case .custom, .none, .optionSpace:
+                return false
+            default:
+                return true
+            }
+        }
+
+        var usesKeyboardShortcut: Bool {
+            switch self {
+            case .custom, .optionSpace:
+                return true
+            default:
+                return false
+            }
+        }
+
+        var predefinedShortcut: KeyboardShortcuts.Shortcut? {
+            switch self {
+            case .optionSpace:
+                return .init(.space, modifiers: .option)
+            default:
+                return nil
+            }
         }
     }
-    
+
     init(whisperState: WhisperState, enhancementService: AIEnhancementService) {
         // One-time migration from legacy single-hotkey settings
         if UserDefaults.standard.object(forKey: "didMigrateHotkeys_v2") == nil {
@@ -136,17 +161,31 @@ class HotkeyManager: ObservableObject {
             // Leave second hotkey as .none
             UserDefaults.standard.set(true, forKey: "didMigrateHotkeys_v2")
         }
-        // ---- normal initialisation ----
-        self.selectedHotkey1 = HotkeyOption(rawValue: UserDefaults.standard.string(forKey: "selectedHotkey1") ?? "") ?? .rightCommand
-        self.selectedHotkey2 = HotkeyOption(rawValue: UserDefaults.standard.string(forKey: "selectedHotkey2") ?? "") ?? .none
-        
-        self.isMiddleClickToggleEnabled = UserDefaults.standard.bool(forKey: "isMiddleClickToggleEnabled")
+
+        let storedHotkey1 = UserDefaults.standard.string(forKey: "selectedHotkey1")
+        let storedHotkey2 = UserDefaults.standard.string(forKey: "selectedHotkey2")
+        let initialHotkey1 = HotkeyOption(rawValue: storedHotkey1 ?? "") ?? .optionSpace
+        let initialHotkey2 = HotkeyOption(rawValue: storedHotkey2 ?? "") ?? .none
+        let initialMiddleClickToggle = UserDefaults.standard.bool(forKey: "isMiddleClickToggleEnabled")
         let storedDelay = UserDefaults.standard.integer(forKey: "middleClickActivationDelay")
-        self.middleClickActivationDelay = storedDelay > 0 ? storedDelay : 200
-        
+        let initialMiddleClickDelay = storedDelay > 0 ? storedDelay : 200
+
         self.whisperState = whisperState
         self.enhancementService = enhancementService
         self.miniRecorderShortcutManager = MiniRecorderShortcutManager(whisperState: whisperState)
+        self.selectedHotkey1 = initialHotkey1
+        self.selectedHotkey2 = initialHotkey2
+        self.isMiddleClickToggleEnabled = initialMiddleClickToggle
+        self.middleClickActivationDelay = initialMiddleClickDelay
+
+        if storedHotkey1 == nil {
+            UserDefaults.standard.set(initialHotkey1.rawValue, forKey: "selectedHotkey1")
+        }
+        if storedHotkey2 == nil {
+            UserDefaults.standard.set(initialHotkey2.rawValue, forKey: "selectedHotkey2")
+        }
+
+        applyInitialShortcutConfiguration()
 
         KeyboardShortcuts.onKeyUp(for: .pasteLastTranscription) { [weak self] in
             guard let self = self else { return }
@@ -186,6 +225,25 @@ class HotkeyManager: ObservableObject {
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 100_000_000)
             self.setupHotkeyMonitoring()
+        }
+    }
+
+    private func applyInitialShortcutConfiguration() {
+        handleShortcutChange(oldValue: .none, newValue: selectedHotkey1, name: .toggleMiniRecorder)
+        handleShortcutChange(oldValue: .none, newValue: selectedHotkey2, name: .toggleMiniRecorder2)
+    }
+
+    private func handleShortcutChange(oldValue: HotkeyOption, newValue: HotkeyOption, name: KeyboardShortcuts.Name) {
+        guard oldValue != newValue else { return }
+
+        if oldValue.predefinedShortcut != nil {
+            KeyboardShortcuts.setShortcut(nil, for: name)
+        }
+
+        if let shortcut = newValue.predefinedShortcut {
+            KeyboardShortcuts.setShortcut(shortcut, for: name)
+        } else if newValue == .none {
+            KeyboardShortcuts.setShortcut(nil, for: name)
         }
     }
     
@@ -253,7 +311,7 @@ class HotkeyManager: ObservableObject {
     
     private func setupCustomShortcutMonitoring() {
         // Hotkey 1
-        if selectedHotkey1 == .custom {
+        if selectedHotkey1.usesKeyboardShortcut {
             KeyboardShortcuts.onKeyDown(for: .toggleMiniRecorder) { [weak self] in
                 Task { @MainActor in await self?.handleCustomShortcutKeyDown() }
             }
@@ -262,7 +320,7 @@ class HotkeyManager: ObservableObject {
             }
         }
         // Hotkey 2
-        if selectedHotkey2 == .custom {
+        if selectedHotkey2.usesKeyboardShortcut {
             KeyboardShortcuts.onKeyDown(for: .toggleMiniRecorder2) { [weak self] in
                 Task { @MainActor in await self?.handleCustomShortcutKeyDown() }
             }
@@ -344,10 +402,10 @@ class HotkeyManager: ObservableObject {
             isKeyPressed = flags.contains(.command)
         case .rightShift:
             isKeyPressed = flags.contains(.shift)
-        case .custom, .none:
+        case .optionSpace, .custom, .none:
             return // Should not reach here
         }
-        
+
         processKeyPress(isKeyPressed: isKeyPressed)
     }
     
@@ -439,14 +497,14 @@ class HotkeyManager: ObservableObject {
     
     // Computed property for backward compatibility with UI
     var isShortcutConfigured: Bool {
-        let isHotkey1Configured = (selectedHotkey1 == .custom) ? (KeyboardShortcuts.getShortcut(for: .toggleMiniRecorder) != nil) : true
-        let isHotkey2Configured = (selectedHotkey2 == .custom) ? (KeyboardShortcuts.getShortcut(for: .toggleMiniRecorder2) != nil) : true
+        let isHotkey1Configured = selectedHotkey1.usesKeyboardShortcut ? (KeyboardShortcuts.getShortcut(for: .toggleMiniRecorder) != nil) : true
+        let isHotkey2Configured = selectedHotkey2.usesKeyboardShortcut ? (KeyboardShortcuts.getShortcut(for: .toggleMiniRecorder2) != nil) : true
         return isHotkey1Configured && isHotkey2Configured
     }
-    
+
     func updateShortcutStatus() {
         // Called when a custom shortcut changes
-        if selectedHotkey1 == .custom || selectedHotkey2 == .custom {
+        if selectedHotkey1.usesKeyboardShortcut || selectedHotkey2.usesKeyboardShortcut {
             setupHotkeyMonitoring()
         }
     }

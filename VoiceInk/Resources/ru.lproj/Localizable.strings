@@ -109,6 +109,7 @@
 "HotkeyOption.None" = "Нет";
 "HotkeyOption.RightOption" = "Правый Option (⌥)";
 "HotkeyOption.LeftOption" = "Левый Option (⌥)";
+"HotkeyOption.OptionSpace" = "Option + Пробел";
 "HotkeyOption.LeftControl" = "Левый Control (⌃)";
 "HotkeyOption.RightControl" = "Правый Control (⌃)";
 "HotkeyOption.Fn" = "Fn";
@@ -455,6 +456,7 @@
 "Try It Out!" = "Попробуйте!";
 "Skip Tour" = "Пропустить тур";
 "Skip for now" = "Пока пропустить";
+"Continue" = "Продолжить";
 "Your Writing Assistant" = "Ваш помощник по письму";
 "Your Vibe-Coding Assistant" = "Ваш ассистент по вайб-кодингу";
 "Works Everywhere on Mac with a click" = "Работает везде на Mac по одному клику";
