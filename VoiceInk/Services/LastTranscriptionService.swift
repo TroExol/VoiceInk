@@ -22,7 +22,7 @@ class LastTranscriptionService: ObservableObject {
         guard let lastTranscription = getLastTranscription(from: modelContext) else {
             Task { @MainActor in
                 NotificationManager.shared.showNotification(
-                    title: "No transcription available",
+                    title: String(localized: "notifications.noTranscriptionAvailable"),
                     type: .error
                 )
             }
@@ -43,12 +43,12 @@ class LastTranscriptionService: ObservableObject {
         Task { @MainActor in
             if success {
                 NotificationManager.shared.showNotification(
-                    title: "Last transcription copied",
+                    title: String(localized: "notifications.lastTranscriptionCopied"),
                     type: .success
                 )
             } else {
                 NotificationManager.shared.showNotification(
-                    title: "Failed to copy transcription",
+                    title: String(localized: "notifications.failedToCopyTranscription"),
                     type: .error
                 )
             }
@@ -59,7 +59,7 @@ class LastTranscriptionService: ObservableObject {
         guard let lastTranscription = getLastTranscription(from: modelContext) else {
             Task { @MainActor in
                 NotificationManager.shared.showNotification(
-                    title: "No transcription available",
+                    title: String(localized: "notifications.noTranscriptionAvailable"),
                     type: .error
                 )
             }
@@ -78,7 +78,7 @@ class LastTranscriptionService: ObservableObject {
         guard let lastTranscription = getLastTranscription(from: modelContext) else {
             Task { @MainActor in
                 NotificationManager.shared.showNotification(
-                    title: "No transcription available",
+                    title: String(localized: "notifications.noTranscriptionAvailable"),
                     type: .error
                 )
             }
@@ -107,15 +107,15 @@ class LastTranscriptionService: ObservableObject {
                   let audioURL = URL(string: audioURLString),
                   FileManager.default.fileExists(atPath: audioURL.path) else {
                 NotificationManager.shared.showNotification(
-                    title: "Cannot retry: Audio file not found",
+                    title: String(localized: "notifications.cannotRetryAudioMissing"),
                     type: .error
                 )
                 return
             }
-            
+
             guard let currentModel = whisperState.currentTranscriptionModel else {
                 NotificationManager.shared.showNotification(
-                    title: "No transcription model selected",
+                    title: String(localized: "notifications.noTranscriptionModelSelected"),
                     type: .error
                 )
                 return
@@ -127,9 +127,9 @@ class LastTranscriptionService: ObservableObject {
                 
                 let textToCopy = newTranscription.enhancedText?.isEmpty == false ? newTranscription.enhancedText! : newTranscription.text
                 ClipboardManager.copyToClipboard(textToCopy)
-                
+
                 NotificationManager.shared.showNotification(
-                    title: "Copied to clipboard",
+                    title: String(localized: "notifications.copiedToClipboard"),
                     type: .success
                 )
             } catch {
@@ -137,7 +137,11 @@ class LastTranscriptionService: ObservableObject {
                     return
                 }
                 NotificationManager.shared.showNotification(
-                    title: "Retry failed: \(error.localizedDescription)",
+                    title: String(
+                        format: String(localized: "notifications.retryFailed"),
+                        locale: Locale.current,
+                        error.localizedDescription
+                    ),
                     type: .error
                 )
             }

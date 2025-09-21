@@ -66,8 +66,13 @@ class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
         if String(currentDeviceID) != lastDeviceID {
             if let deviceName = deviceManager.availableDevices.first(where: { $0.id == currentDeviceID })?.name {
                 await MainActor.run {
+                    let message = String(
+                        format: String(localized: "notifications.usingDevice"),
+                        locale: Locale.current,
+                        deviceName
+                    )
                     NotificationManager.shared.showNotification(
-                        title: "Using: \(deviceName)",
+                        title: message,
                         type: .info
                     )
                 }
@@ -136,7 +141,7 @@ class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
 
                     await MainActor.run {
                         NotificationManager.shared.showNotification(
-                            title: "No Audio Detected",
+                            title: String(localized: "notifications.noAudioDetected"),
                             type: .warning
                         )
                     }
@@ -209,7 +214,7 @@ class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
             logger.error("❌ Recording finished unsuccessfully - file may be corrupted or empty")
             Task { @MainActor in
                 NotificationManager.shared.showNotification(
-                    title: "Recording failed - audio file corrupted",
+                    title: String(localized: "notifications.recordingCorrupted"),
                     type: .error
                 )
             }
@@ -221,7 +226,11 @@ class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
             logger.error("❌ Recording encode error during session: \(error.localizedDescription)")
             Task { @MainActor in
                 NotificationManager.shared.showNotification(
-                    title: "Recording error: \(error.localizedDescription)",
+                    title: String(
+                        format: String(localized: "notifications.recordingError"),
+                        locale: Locale.current,
+                        error.localizedDescription
+                    ),
                     type: .error
                 )
             }

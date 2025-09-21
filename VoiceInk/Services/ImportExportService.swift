@@ -134,9 +134,25 @@ class ImportExportService {
                     if let url = savePanel.url {
                         do {
                             try jsonData.write(to: url)
-                            self.showAlert(title: "Export Successful", message: "Your settings have been successfully exported to \(url.lastPathComponent).")
+                            let message = String(
+                                format: String(localized: "alerts.exportSettings.successMessage"),
+                                locale: Locale.current,
+                                url.lastPathComponent
+                            )
+                            self.showAlert(
+                                title: String(localized: "Export Successful"),
+                                message: message
+                            )
                         } catch {
-                            self.showAlert(title: "Export Error", message: "Could not save settings to file: \(error.localizedDescription)")
+                            let message = String(
+                                format: String(localized: "alerts.exportSettings.writeError"),
+                                locale: Locale.current,
+                                error.localizedDescription
+                            )
+                            self.showAlert(
+                                title: String(localized: "Export Error"),
+                                message: message
+                            )
                         }
                     }
                 } else {
@@ -147,7 +163,12 @@ class ImportExportService {
                 }
             }
         } catch {
-            self.showAlert(title: "Export Error", message: "Could not encode settings to JSON: \(error.localizedDescription)")
+            let message = String(
+                format: String(localized: "alerts.exportSettings.encodeError"),
+                locale: Locale.current,
+                error.localizedDescription
+            )
+            self.showAlert(title: String(localized: "Export Error"), message: message)
         }
     }
 
@@ -164,7 +185,10 @@ class ImportExportService {
         DispatchQueue.main.async {
             if openPanel.runModal() == .OK {
                 guard let url = openPanel.url else {
-                    self.showAlert(title: "Import Error", message: "Could not get the file URL from the open panel.")
+                    self.showAlert(
+                        title: String(localized: "Import Error"),
+                        message: String(localized: "alerts.importSettings.missingURL")
+                    )
                     return
                 }
 
@@ -174,7 +198,13 @@ class ImportExportService {
                     let importedSettings = try decoder.decode(VoiceInkExportedSettings.self, from: jsonData)
                     
                     if importedSettings.version != self.currentSettingsVersion {
-                        self.showAlert(title: "Version Mismatch", message: "The imported settings file (version \(importedSettings.version)) is from a different version than your application (version \(self.currentSettingsVersion)). Proceeding with import, but be aware of potential incompatibilities.")
+                        let message = String(
+                            format: String(localized: "alerts.importSettings.versionMismatch"),
+                            locale: Locale.current,
+                            importedSettings.version,
+                            self.currentSettingsVersion
+                        )
+                        self.showAlert(title: String(localized: "Version Mismatch"), message: message)
                     }
 
                     let predefinedPrompts = enhancementService.customPrompts.filter { $0.isPredefined }
@@ -280,10 +310,15 @@ class ImportExportService {
                         }
                     }
 
-                    self.showRestartAlert(message: "Settings imported successfully from \(url.lastPathComponent). All settings (including general app settings) have been applied.")
+                    self.showRestartAlert(importedFileName: url.lastPathComponent)
 
                 } catch {
-                    self.showAlert(title: "Import Error", message: "Error importing settings: \(error.localizedDescription). The file might be corrupted or not in the correct format.")
+                    let message = String(
+                        format: String(localized: "alerts.importSettings.generalError"),
+                        locale: Locale.current,
+                        error.localizedDescription
+                    )
+                    self.showAlert(title: String(localized: "Import Error"), message: message)
                 }
             } else {
                     self.showAlert(
@@ -300,20 +335,27 @@ class ImportExportService {
             alert.messageText = title
             alert.informativeText = message
             alert.alertStyle = .informational
-            alert.addButton(withTitle: "OK")
+            alert.addButton(withTitle: String(localized: "OK"))
             alert.runModal()
         }
     }
 
-    private func showRestartAlert(message: String) {
+    private func showRestartAlert(importedFileName: String) {
         DispatchQueue.main.async {
             let alert = NSAlert()
-            alert.messageText = "Import Successful"
-            alert.informativeText = message + "\n\nIMPORTANT: If you were using AI enhancement features, please make sure to reconfigure your API keys in the Enhancement section.\n\nIt is recommended to restart VoiceInk for all changes to take full effect."
+            alert.messageText = String(localized: "Import Successful")
+            let successMessage = String(
+                format: String(localized: "alerts.importSettings.successMessage"),
+                locale: Locale.current,
+                importedFileName
+            )
+            let reconfigureMessage = String(localized: "alerts.importSettings.reconfigure")
+            let restartMessage = String(localized: "alerts.importSettings.restartRecommendation")
+            alert.informativeText = [successMessage, reconfigureMessage, restartMessage].joined(separator: "\n\n")
             alert.alertStyle = .informational
-            alert.addButton(withTitle: "OK")
-            alert.addButton(withTitle: "Configure API Keys")
-            
+            alert.addButton(withTitle: String(localized: "OK"))
+            alert.addButton(withTitle: String(localized: "alerts.importSettings.configureButton"))
+
             let response = alert.runModal()
             if response == .alertSecondButtonReturn {
                 NotificationCenter.default.post(

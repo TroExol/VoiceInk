@@ -162,11 +162,15 @@ extension WhisperState {
     private func showCoreMLAlert(for model: LocalModel, completion: @escaping () -> Void) {
         Task { @MainActor in
             let alert = NSAlert()
-            alert.messageText = "Core ML Support for \(model.displayName) Model"
-            alert.informativeText = "This Whisper model supports Core ML, which can improve performance by 2-4x on Apple Silicon devices.\n\nDuring the first run, it can take several minutes to optimize the model for your system. Subsequent runs will be much faster."
+            alert.messageText = String(
+                format: String(localized: "alerts.coremlSupport.title"),
+                locale: Locale.current,
+                model.displayName
+            )
+            alert.informativeText = String(localized: "alerts.coremlSupport.message")
             alert.alertStyle = .informational
-            alert.addButton(withTitle: "Download")
-            alert.addButton(withTitle: "Cancel")
+            alert.addButton(withTitle: String(localized: "models.button.download"))
+            alert.addButton(withTitle: String(localized: "Cancel"))
             
             let response = alert.runModal()
             if response == .alertFirstButtonReturn {
@@ -363,7 +367,11 @@ extension WhisperState {
         // Do not rename on collision; simply notify the user and abort
         if FileManager.default.fileExists(atPath: destinationURL.path) {
             await NotificationManager.shared.showNotification(
-                title: "A model named \(baseName).bin already exists",
+                title: String(
+                    format: String(localized: "notifications.modelAlreadyExists"),
+                    locale: Locale.current,
+                    baseName
+                ),
                 type: .warning,
                 duration: 4.0
             )
@@ -384,14 +392,22 @@ extension WhisperState {
             }
 
             await NotificationManager.shared.showNotification(
-                title: "Imported \(destinationURL.lastPathComponent)",
+                title: String(
+                    format: String(localized: "notifications.modelImported"),
+                    locale: Locale.current,
+                    destinationURL.lastPathComponent
+                ),
                 type: .success,
                 duration: 3.0
             )
         } catch {
             logError("Failed to import local model", error)
             await NotificationManager.shared.showNotification(
-                title: "Failed to import model: \(error.localizedDescription)",
+                title: String(
+                    format: String(localized: "notifications.modelImportFailed"),
+                    locale: Locale.current,
+                    error.localizedDescription
+                ),
                 type: .error,
                 duration: 5.0
             )
