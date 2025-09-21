@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct TimeEfficiencyView: View {
-    @Environment(\.locale) private var locale
+    @EnvironmentObject private var languageManager: LanguageManager
     // MARK: - Properties
     
     private let totalRecordedTime: TimeInterval
@@ -59,7 +59,7 @@ struct TimeEfficiencyView: View {
                 Text("You are")
                     .font(.system(size: 32, weight: .bold))
                 
-                (Text(efficiencyMultiplierFormatted) + Text(" ") + Text(String(localized: "Faster")))
+                (Text(efficiencyMultiplierFormatted) + Text(" ") + Text(LocalizedStringKey("Faster")))
                     .font(.system(size: 32, weight: .bold))
                     .foregroundStyle(efficiencyGradient)
                 
@@ -176,7 +176,7 @@ struct TimeEfficiencyView: View {
         let formatter = DateComponentsFormatter()
         formatter.allowedUnits = [.hour, .minute, .second]
         formatter.unitsStyle = .abbreviated
-        formatter.locale = locale
+        formatter.locale = languageManager.locale
         return formatter.string(from: duration) ?? ""
     }
 }
@@ -184,17 +184,17 @@ struct TimeEfficiencyView: View {
 // MARK: - Helper Struct
 
 struct TimeBlockView: View {
-    @Environment(\.locale) private var locale
+    @EnvironmentObject private var languageManager: LanguageManager
     let duration: TimeInterval
     let label: LocalizedStringKey
     let icon: String
     let color: Color
-    
+
     private func formatDuration(_ duration: TimeInterval) -> String {
         let formatter = DateComponentsFormatter()
         formatter.allowedUnits = [.hour, .minute, .second]
         formatter.unitsStyle = .abbreviated
-        formatter.locale = locale
+        formatter.locale = languageManager.locale
         return formatter.string(from: duration) ?? ""
     }
     

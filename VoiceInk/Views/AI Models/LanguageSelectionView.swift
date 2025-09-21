@@ -13,6 +13,7 @@ struct LanguageSelectionView: View {
     // Add display mode parameter with full as the default
     var displayMode: LanguageDisplayMode = .full
     @ObservedObject var whisperPrompt: WhisperPrompt
+    @EnvironmentObject private var languageManager: LanguageManager
 
     private func updateLanguage(_ language: String) {
         // Update UI state - the UserDefaults updating is now automatic with @AppStorage
@@ -114,9 +115,9 @@ struct LanguageSelectionView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
 
-                        Text(String(localized: "models.multilingualHint"))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        Text(LocalizedStringKey("models.multilingualHint"))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
                 } else {
                     // For English-only models, force set language to English
@@ -129,9 +130,9 @@ struct LanguageSelectionView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
 
-                        Text(String(localized: "models.englishOnlyHint"))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        Text(LocalizedStringKey("models.englishOnlyHint"))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
                     .onAppear {
                         // Ensure English is set when viewing English-only model
@@ -193,7 +194,7 @@ struct LanguageSelectionView: View {
                 Button {
                     // Do nothing, just showing info
                 } label: {
-                    Text(String(localized: "Language: English (only)"))
+                    Text(LocalizedStringKey("Language: English (only)"))
                         .foregroundColor(.secondary)
                 }
                 .disabled(true)
@@ -206,7 +207,10 @@ struct LanguageSelectionView: View {
     }
 
     private func localizedCurrentModelText(_ displayName: String) -> String {
-        let format = String(localized: "models.currentModel", comment: "Current model label with placeholder for model name")
-        return String(format: format, displayName)
+        let format = languageManager.localizedString(
+            for: "models.currentModel",
+            defaultValue: "Current model: %@"
+        )
+        return String(format: format, locale: languageManager.locale, displayName)
     }
 }
