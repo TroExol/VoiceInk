@@ -127,7 +127,9 @@ struct PerformanceAnalysisView: View {
         let formatter = DateComponentsFormatter()
         formatter.allowedUnits = [.minute, .second]
         formatter.unitsStyle = .abbreviated
-        formatter.locale = locale
+        var calendar = Calendar.current
+        calendar.locale = locale
+        formatter.calendar = calendar
         return formatter.string(from: duration) ?? "0s"
     }
 
@@ -375,7 +377,9 @@ struct TranscriptionModelCard: View {
         let formatter = DateComponentsFormatter()
         formatter.allowedUnits = [.minute, .second]
         formatter.unitsStyle = .abbreviated
-        formatter.locale = locale
+        var calendar = Calendar.current
+        calendar.locale = locale
+        formatter.calendar = calendar
         return formatter.string(from: duration) ?? "0s"
     }
 }
