@@ -105,6 +105,7 @@
 "HotkeyOption.None" = "None";
 "HotkeyOption.RightOption" = "Right Option (⌥)";
 "HotkeyOption.LeftOption" = "Left Option (⌥)";
+"HotkeyOption.OptionSpace" = "Option + Space";
 "HotkeyOption.LeftControl" = "Left Control (⌃)";
 "HotkeyOption.RightControl" = "Right Control (⌃)";
 "HotkeyOption.Fn" = "Fn";
@@ -450,6 +451,7 @@
 "Try It Out!" = "Try It Out!";
 "Skip Tour" = "Skip Tour";
 "Skip for now" = "Skip for now";
+"Continue" = "Continue";
 "Your Writing Assistant" = "Your Writing Assistant";
 "Your Vibe-Coding Assistant" = "Your Vibe-Coding Assistant";
 "Works Everywhere on Mac with a click" = "Works Everywhere on Mac with a click";
