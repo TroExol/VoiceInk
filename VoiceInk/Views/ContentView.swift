@@ -143,6 +143,33 @@ struct DynamicSidebarButton: View {
     }
 }
 
+struct FixedSidebarLayout<Sidebar: View, Detail: View>: View {
+    let sidebar: Sidebar
+    let detail: Detail
+    let width: CGFloat
+
+    init(width: CGFloat = 200, @ViewBuilder sidebar: () -> Sidebar, @ViewBuilder detail: () -> Detail) {
+        self.sidebar = sidebar()
+        self.detail = detail()
+        self.width = width
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            sidebar
+                .frame(width: width)
+
+            Rectangle()
+                .fill(.separator)
+                .frame(width: 1)
+                .allowsHitTesting(false)
+
+            detail
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+}
+
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme
@@ -151,7 +178,6 @@ struct ContentView: View {
     @State private var selectedView: ViewType = .metrics
     @State private var hoveredView: ViewType?
     @State private var hasLoadedData = false
-    @State private var columnVisibility: NavigationSplitViewVisibility = .all
     let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
     
     private var isSetupComplete: Bool {
@@ -163,28 +189,19 @@ struct ContentView: View {
     }
 
     var body: some View {
-        NavigationSplitView(columnVisibility: $columnVisibility) {
+        FixedSidebarLayout(width: 200) {
             DynamicSidebar(
                 selectedView: $selectedView,
                 hoveredView: $hoveredView
             )
-            .frame(minWidth: 200, idealWidth: 200, maxWidth: 200)
-            .navigationSplitViewColumnWidth(min: 200, ideal: 200, max: 200)
         } detail: {
             detailView
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .toolbar(.hidden, for: .automatic)
                 .navigationTitle("")
         }
-        .navigationSplitViewStyle(.balanced)
         .frame(minWidth: 940, minHeight: 730)
         .onAppear {
             hasLoadedData = true
-        }
-        .onChange(of: columnVisibility) { newValue in
-            if newValue != .all {
-                columnVisibility = .all
-            }
         }
         // inside ContentView body:
         .onReceive(NotificationCenter.default.publisher(for: .navigateToDestination)) { notification in
