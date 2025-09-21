@@ -161,26 +161,31 @@ class HotkeyManager: ObservableObject {
             // Leave second hotkey as .none
             UserDefaults.standard.set(true, forKey: "didMigrateHotkeys_v2")
         }
-        // ---- normal initialisation ----
-        self.selectedHotkey1 = HotkeyOption(rawValue: UserDefaults.standard.string(forKey: "selectedHotkey1") ?? "") ?? .optionSpace
-        self.selectedHotkey2 = HotkeyOption(rawValue: UserDefaults.standard.string(forKey: "selectedHotkey2") ?? "") ?? .none
 
-        if UserDefaults.standard.string(forKey: "selectedHotkey1") == nil {
-            UserDefaults.standard.set(self.selectedHotkey1.rawValue, forKey: "selectedHotkey1")
-        }
-        if UserDefaults.standard.string(forKey: "selectedHotkey2") == nil {
-            UserDefaults.standard.set(self.selectedHotkey2.rawValue, forKey: "selectedHotkey2")
-        }
-
-        applyInitialShortcutConfiguration()
-
-        self.isMiddleClickToggleEnabled = UserDefaults.standard.bool(forKey: "isMiddleClickToggleEnabled")
+        let storedHotkey1 = UserDefaults.standard.string(forKey: "selectedHotkey1")
+        let storedHotkey2 = UserDefaults.standard.string(forKey: "selectedHotkey2")
+        let initialHotkey1 = HotkeyOption(rawValue: storedHotkey1 ?? "") ?? .optionSpace
+        let initialHotkey2 = HotkeyOption(rawValue: storedHotkey2 ?? "") ?? .none
+        let initialMiddleClickToggle = UserDefaults.standard.bool(forKey: "isMiddleClickToggleEnabled")
         let storedDelay = UserDefaults.standard.integer(forKey: "middleClickActivationDelay")
-        self.middleClickActivationDelay = storedDelay > 0 ? storedDelay : 200
+        let initialMiddleClickDelay = storedDelay > 0 ? storedDelay : 200
 
         self.whisperState = whisperState
         self.enhancementService = enhancementService
         self.miniRecorderShortcutManager = MiniRecorderShortcutManager(whisperState: whisperState)
+        self.selectedHotkey1 = initialHotkey1
+        self.selectedHotkey2 = initialHotkey2
+        self.isMiddleClickToggleEnabled = initialMiddleClickToggle
+        self.middleClickActivationDelay = initialMiddleClickDelay
+
+        if storedHotkey1 == nil {
+            UserDefaults.standard.set(initialHotkey1.rawValue, forKey: "selectedHotkey1")
+        }
+        if storedHotkey2 == nil {
+            UserDefaults.standard.set(initialHotkey2.rawValue, forKey: "selectedHotkey2")
+        }
+
+        applyInitialShortcutConfiguration()
 
         KeyboardShortcuts.onKeyUp(for: .pasteLastTranscription) { [weak self] in
             guard let self = self else { return }
