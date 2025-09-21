@@ -150,7 +150,7 @@ class WhisperState: NSObject, ObservableObject {
             guard currentTranscriptionModel != nil else {
                 await MainActor.run {
                     NotificationManager.shared.showNotification(
-                        title: "No AI Model Selected",
+                        title: String(localized: "notifications.noAIModelSelected"),
                         type: .error
                     )
                 }
@@ -195,7 +195,10 @@ class WhisperState: NSObject, ObservableObject {
         
                         } catch {
                             self.logger.error("❌ Failed to start recording: \(error.localizedDescription)")
-                            await NotificationManager.shared.showNotification(title: "Recording failed to start", type: .error)
+                            await NotificationManager.shared.showNotification(
+                                title: String(localized: "notifications.recordingFailedToStart"),
+                                type: .error
+                            )
                             await self.dismissMiniRecorder()
                             // Do not remove the file on a failed start, to preserve all recordings.
                             self.recordedFile = nil
@@ -324,7 +327,11 @@ class WhisperState: NSObject, ObservableObject {
                     let newTranscription = Transcription(
                         text: originalText,
                         duration: actualDuration,
-                        enhancedText: "Enhancement failed: \(error)",
+                        enhancedText: String(
+                            format: String(localized: "transcription.enhancementFailedFormat"),
+                            locale: Locale.current,
+                            error.localizedDescription
+                        ),
                         audioFileURL: url.absoluteString,
                         transcriptionModelName: model.displayName,
                         promptName: nil,
@@ -336,7 +343,7 @@ class WhisperState: NSObject, ObservableObject {
                     
                     await MainActor.run {
                         NotificationManager.shared.showNotification(
-                            title: "AI enhancement failed",
+                            title: String(localized: "notifications.aiEnhancementFailed"),
                             type: .error
                         )
                     }
@@ -393,7 +400,11 @@ class WhisperState: NSObject, ObservableObject {
                     let fullErrorText = recoverySuggestion.isEmpty ? errorDescription : "\(errorDescription) \(recoverySuggestion)"
                     
                     let failedTranscription = Transcription(
-                        text: "Transcription Failed: \(fullErrorText)",
+                        text: String(
+                            format: String(localized: "transcription.failedFormat"),
+                            locale: Locale.current,
+                            fullErrorText
+                        ),
                         duration: duration,
                         enhancedText: nil,
                         audioFileURL: url.absoluteString,
@@ -410,7 +421,7 @@ class WhisperState: NSObject, ObservableObject {
             
             await MainActor.run {
                 NotificationManager.shared.showNotification(
-                    title: "Transcription Failed",
+                    title: String(localized: "notifications.transcriptionFailed"),
                     type: .error
                 )
             }

@@ -163,17 +163,17 @@ enum LocalAIError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidURL:
-            return "Invalid Ollama server URL"
+            return String(localized: "errors.ollama.invalidURL")
         case .serviceUnavailable:
-            return "Ollama service is not available"
+            return String(localized: "errors.ollama.serviceUnavailable")
         case .invalidResponse:
-            return "Invalid response from Ollama server"
+            return String(localized: "errors.ollama.invalidResponse")
         case .modelNotFound:
-            return "Selected model not found"
+            return String(localized: "errors.ollama.modelNotFound")
         case .serverError:
-            return "Ollama server error"
+            return String(localized: "errors.ollama.serverError")
         case .invalidRequest:
-            return "System prompt is required"
+            return String(localized: "errors.ollama.invalidRequest")
         }
     }
-} 
+}
