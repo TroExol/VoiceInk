@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct TimeEfficiencyView: View {
+    @Environment(\.locale) private var locale
     // MARK: - Properties
     
     private let totalRecordedTime: TimeInterval
@@ -175,6 +176,9 @@ struct TimeEfficiencyView: View {
         let formatter = DateComponentsFormatter()
         formatter.allowedUnits = [.hour, .minute, .second]
         formatter.unitsStyle = .abbreviated
+        var calendar = Calendar.current
+        calendar.locale = locale
+        formatter.calendar = calendar
         return formatter.string(from: duration) ?? ""
     }
 }
@@ -182,6 +186,7 @@ struct TimeEfficiencyView: View {
 // MARK: - Helper Struct
 
 struct TimeBlockView: View {
+    @Environment(\.locale) private var locale
     let duration: TimeInterval
     let label: LocalizedStringKey
     let icon: String
@@ -191,6 +196,9 @@ struct TimeBlockView: View {
         let formatter = DateComponentsFormatter()
         formatter.allowedUnits = [.hour, .minute, .second]
         formatter.unitsStyle = .abbreviated
+        var calendar = Calendar.current
+        calendar.locale = locale
+        formatter.calendar = calendar
         return formatter.string(from: duration) ?? ""
     }
     

@@ -27,7 +27,8 @@ final class LanguageManager: ObservableObject {
 
     @Published var selectedLanguage: AppLanguage {
         didSet {
-            UserDefaults.standard.set(selectedLanguage.rawValue, forKey: Constants.storageKey)
+            persistLanguageSelection()
+            Bundle.setLanguage(selectedLanguage.rawValue)
             NotificationCenter.default.post(name: .languageDidChange, object: selectedLanguage)
         }
     }
@@ -39,10 +40,17 @@ final class LanguageManager: ObservableObject {
         } else {
             selectedLanguage = .english
         }
+
+        Bundle.setLanguage(selectedLanguage.rawValue)
         NotificationCenter.default.post(name: .languageDidChange, object: selectedLanguage)
     }
 
     var locale: Locale {
         selectedLanguage.locale
     }
+
+    private func persistLanguageSelection() {
+        UserDefaults.standard.set(selectedLanguage.rawValue, forKey: Constants.storageKey)
+    }
+
 }
