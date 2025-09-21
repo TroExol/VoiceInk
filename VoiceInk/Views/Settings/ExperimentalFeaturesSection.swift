@@ -40,7 +40,7 @@ struct ExperimentalFeaturesSection: View {
                     Text("Pause Media during recording")
                 }
                 .toggleStyle(.switch)
-                .help("Automatically pause active media playback during recordings and resume afterward.")
+                .localizedHelp("Automatically pause active media playback during recordings and resume afterward.")
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }

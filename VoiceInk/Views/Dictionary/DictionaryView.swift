@@ -85,6 +85,7 @@ struct DictionaryView: View {
     @State private var newWord = ""
     @State private var showAlert = false
     @State private var alertMessage = ""
+    @EnvironmentObject private var languageManager: LanguageManager
     
     init(whisperPrompt: WhisperPrompt) {
         self.whisperPrompt = whisperPrompt
@@ -121,15 +122,20 @@ struct DictionaryView: View {
                 }
                 .buttonStyle(.borderless)
                 .disabled(newWord.isEmpty)
-                .help("Add word")
+                .localizedHelp("Add word")
             }
             
             // Words List
             if !dictionaryManager.items.isEmpty {
                 VStack(alignment: .leading, spacing: 12) {
+                    let format = languageManager.localizedString(
+                        for: "Dictionary Items Count Format",
+                        defaultValue: "Dictionary Items (%d)"
+                    )
                     Text(
-                        String.localizedStringWithFormat(
-                            String(localized: "Dictionary Items Count Format"),
+                        String(
+                            format: format,
+                            locale: languageManager.locale,
                             dictionaryManager.items.count
                         )
                     )
@@ -176,10 +182,11 @@ struct DictionaryView: View {
         
         if parts.count == 1, let word = parts.first {
             if dictionaryManager.items.contains(where: { $0.word.lowercased() == word.lowercased() }) {
-                alertMessage = String.localizedStringWithFormat(
-                    String(localized: "Dictionary duplicate word message"),
-                    word
+                let format = languageManager.localizedString(
+                    for: "Dictionary duplicate word message",
+                    defaultValue: "'%@' is already in the dictionary"
                 )
+                alertMessage = String(format: format, locale: languageManager.locale, word)
                 showAlert = true
                 return
             }
@@ -219,7 +226,7 @@ struct DictionaryItemView: View {
                     .contentTransition(.symbolEffect(.replace))
             }
             .buttonStyle(.borderless)
-            .help("Remove word")
+            .localizedHelp("Remove word")
             .onHover { hover in
                 withAnimation(.easeInOut(duration: 0.2)) {
                     isHovered = hover

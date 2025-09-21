@@ -207,7 +207,7 @@ private struct AddEmojiButton: View {
                 )
         }
         .buttonStyle(.plain)
-        .help("Add custom emoji")
+        .localizedHelp("Add custom emoji")
     }
 }
 
@@ -230,6 +230,7 @@ struct EmojiPickerView_Previews: PreviewProvider {
             isPresented: .constant(true)
         )
         .environmentObject(EmojiManager.shared)
+        .environmentObject(LanguageManager.shared)
     }
 }
 #endif

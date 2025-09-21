@@ -3,6 +3,7 @@ import UniformTypeIdentifiers
 
 struct EnhancementSettingsView: View {
     @EnvironmentObject private var enhancementService: AIEnhancementService
+    @EnvironmentObject private var languageManager: LanguageManager
     @State private var isEditingPrompt = false
     @State private var isSettingsExpanded = true
     @State private var selectedPromptForEdit: CustomPrompt?
@@ -107,9 +108,15 @@ struct EnhancementSettingsView: View {
         .background(Color(NSColor.controlBackgroundColor))
         .sheet(isPresented: $isEditingPrompt) {
             PromptEditorView(mode: .add)
+                .environmentObject(enhancementService)
+                .environmentObject(languageManager)
+                .environment(\.locale, languageManager.locale)
         }
         .sheet(item: $selectedPromptForEdit) { prompt in
             PromptEditorView(mode: .edit(prompt))
+                .environmentObject(enhancementService)
+                .environmentObject(languageManager)
+                .environment(\.locale, languageManager.locale)
         }
     }
 }
@@ -179,7 +186,7 @@ private struct ReorderablePromptGrid: View {
                         CustomPrompt.addNewButton {
                             onAddNewPrompt()
                         }
-                        .help("Add new prompt")
+                        .localizedHelp("Add new prompt")
                         .onDrop(
                             of: [UTType.text],
                             delegate: PromptEndDropDelegate(

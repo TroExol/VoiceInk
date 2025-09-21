@@ -143,7 +143,7 @@ struct LocalModelCardView: View {
             } else {
                 Button(action: downloadAction) {
                     HStack(spacing: 4) {
-                        Text(isDownloading ? String(localized: "models.button.downloading") : String(localized: "models.button.download"))
+                        Text(downloadButtonTitle)
                             .font(.system(size: 12, weight: .medium))
                         Image(systemName: "arrow.down.circle")
                             .font(.system(size: 12, weight: .medium))
@@ -183,6 +183,12 @@ struct LocalModelCardView: View {
                 .frame(width: 20, height: 20)
             }
         }
+    }
+}
+
+private extension LocalModelCardView {
+    var downloadButtonTitle: LocalizedStringKey {
+        LocalizedStringKey(isDownloading ? "models.button.downloading" : "models.button.download")
     }
 }
 

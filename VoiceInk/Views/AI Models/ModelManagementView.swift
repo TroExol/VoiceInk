@@ -196,7 +196,7 @@ struct ModelManagementView: View {
                                 learnMoreURL: "https://tryvoiceink.com/docs/custom-local-whisper-models",
                                 learnMoreText: "Learn More"
                             )
-                            .help(String(localized: "models.info.importLocalHelp"))
+                            .localizedHelp("models.info.importLocalHelp")
                         }
                     }
                     

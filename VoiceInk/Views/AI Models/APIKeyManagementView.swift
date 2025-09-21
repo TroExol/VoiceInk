@@ -2,6 +2,7 @@ import SwiftUI
 
 struct APIKeyManagementView: View {
     @EnvironmentObject private var aiService: AIService
+    @EnvironmentObject private var languageManager: LanguageManager
     @State private var apiKey: String = ""
     @State private var showAlert = false
     @State private var alertMessage = ""
@@ -103,7 +104,7 @@ struct APIKeyManagementView: View {
                         Image(systemName: "arrow.clockwise")
                     }
                     .buttonStyle(.borderless)
-                    .help("Refresh models")
+                    .localizedHelp("Refresh models")
                 }
             } else if !aiService.availableModels.isEmpty && 
                         aiService.selectedProvider != .ollama && 
@@ -474,7 +475,11 @@ struct APIKeyManagementView: View {
                         }
 
                         Stepper(value: $providerAttempts, in: 1...10) {
-                            Text(String(format: NSLocalizedString("enhancement.maxAttempts", comment: "Max attempts label in enhancement settings"), providerAttempts))
+                            let format = languageManager.localizedString(
+                                for: "enhancement.maxAttempts",
+                                defaultValue: "Max attempts: %d"
+                            )
+                            Text(String(format: format, locale: languageManager.locale, providerAttempts))
                         }
 
                         Text("Each attempt times out after interval × remaining attempts.")

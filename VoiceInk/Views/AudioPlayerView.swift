@@ -286,7 +286,7 @@ struct AudioPlayerView: View {
                             )
                     }
                     .buttonStyle(.plain)
-                    .help("Show in Finder")
+                    .localizedHelp("Show in Finder")
                     
                     Button(action: {
                         if playerManager.isPlaying {
@@ -336,7 +336,7 @@ struct AudioPlayerView: View {
                     }
                     .buttonStyle(.plain)
                     .disabled(isRetranscribing)
-                    .help("Retranscribe this audio")
+                    .localizedHelp("Retranscribe this audio")
                     
                     Text(formatTime(playerManager.currentTime))
                         .font(.system(size: 14, weight: .medium))

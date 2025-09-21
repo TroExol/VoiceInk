@@ -21,6 +21,8 @@ enum AppLanguage: String, CaseIterable, Identifiable {
 }
 
 final class LanguageManager: ObservableObject {
+    static let shared = LanguageManager()
+
     private enum Constants {
         static let storageKey = "SelectedAppLanguage"
     }
@@ -33,7 +35,7 @@ final class LanguageManager: ObservableObject {
         }
     }
 
-    init() {
+    private init() {
         if let storedValue = UserDefaults.standard.string(forKey: Constants.storageKey),
            let language = AppLanguage(rawValue: storedValue) {
             selectedLanguage = language
@@ -53,4 +55,22 @@ final class LanguageManager: ObservableObject {
         UserDefaults.standard.set(selectedLanguage.rawValue, forKey: Constants.storageKey)
     }
 
+    private func bundle(for language: AppLanguage) -> Bundle? {
+        guard let path = Bundle.main.path(forResource: language.rawValue, ofType: "lproj") else {
+            return nil
+        }
+        return Bundle(path: path)
+    }
+
+    private var activeBundle: Bundle? {
+        bundle(for: selectedLanguage)
+    }
+
+    func localizedString(for key: String, defaultValue: String? = nil, table: String? = nil) -> String {
+        let fallback = defaultValue ?? key
+        if let bundle = activeBundle {
+            return bundle.localizedString(forKey: key, value: fallback, table: table)
+        }
+        return Bundle.main.localizedString(forKey: key, value: fallback, table: table)
+    }
 }
