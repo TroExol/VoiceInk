@@ -412,8 +412,18 @@ struct TranscriptionHistoryView: View {
     }
     
     private func selectionCountText(for count: Int) -> String {
-        let format = NSLocalizedString("history.selectionCount", comment: "Selection count label in history toolbar")
-        return String.localizedStringWithFormat(format, count)
+        let languageManager = LanguageManager.shared
+        let format = languageManager.localizedString(
+            for: "history.selectionCount",
+            defaultValue: "%ld selected",
+            table: "Localizable"
+        )
+
+        if format.contains("%#@") {
+            return String.localizedStringWithFormat(format, count)
+        }
+
+        return String(format: format, locale: languageManager.locale, count)
     }
 
     private func deleteConfirmationMessage(for count: Int) -> String {
