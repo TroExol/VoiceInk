@@ -5,8 +5,8 @@ import KeyboardShortcuts
 
 struct OnboardingPermission: Identifiable {
     let id = UUID()
-    let title: String
-    let description: String
+    let title: LocalizedStringKey
+    let description: LocalizedStringKey
     let icon: String
     let type: PermissionType
     
@@ -392,7 +392,7 @@ struct OnboardingPermissionsView: View {
         }
     }
     
-    private func getButtonTitle() -> String {
+    private func getButtonTitle() -> LocalizedStringKey {
         switch permissions[currentPermissionIndex].type {
         case .keyboardShortcut:
             return permissionStates[currentPermissionIndex] ? "Continue" : "Set Shortcut"

@@ -185,7 +185,7 @@ struct OnboardingModelDownloadView: View {
         }
     }
     
-    private func getButtonTitle() -> String {
+    private func getButtonTitle() -> LocalizedStringKey {
         if isModelSet {
             return "Continue"
         } else if isDownloading {
@@ -196,8 +196,8 @@ struct OnboardingModelDownloadView: View {
             return "Download Model"
         }
     }
-    
-    private func performanceIndicator(label: String, value: Double) -> some View {
+
+    private func performanceIndicator(label: LocalizedStringKey, value: Double) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(label)
                 .font(.caption)
@@ -218,8 +218,8 @@ struct OnboardingModelDownloadView: View {
             Text("RAM")
                 .font(.caption)
                 .foregroundColor(.white.opacity(0.7))
-            
-            Text(String(format: "%.1f GB", gb))
+
+            Text(String(format: String(localized: "%.1f GB"), gb))
                 .font(.system(size: 12, weight: .bold))
                 .foregroundColor(.white)
         }
