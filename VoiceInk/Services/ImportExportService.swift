@@ -125,13 +125,13 @@ class ImportExportService {
         do {
             let jsonData = try encoder.encode(exportedSettings)
 
-            let savePanel = NSSavePanel()
-            savePanel.allowedContentTypes = [UTType.json]
-            savePanel.nameFieldStringValue = "VoiceInk_Settings_Backup.json"
-            savePanel.title = languageManager.localizedString(for: "Export VoiceInk Settings")
-            savePanel.message = languageManager.localizedString(for: "Choose a location to save your settings.")
-
             DispatchQueue.main.async {
+                let savePanel = NSSavePanel()
+                savePanel.allowedContentTypes = [UTType.json]
+                savePanel.nameFieldStringValue = "VoiceInk_Settings_Backup.json"
+                savePanel.title = languageManager.localizedString(for: "Export VoiceInk Settings")
+                savePanel.message = languageManager.localizedString(for: "Choose a location to save your settings.")
+
                 if savePanel.runModal() == .OK {
                     if let url = savePanel.url {
                         do {
@@ -188,16 +188,17 @@ class ImportExportService {
 
     @MainActor
     func importSettings(enhancementService: AIEnhancementService, whisperPrompt: WhisperPrompt, hotkeyManager: HotkeyManager, menuBarManager: MenuBarManager, mediaController: MediaController, playbackController: PlaybackController, soundManager: SoundManager, whisperState: WhisperState) {
-        let openPanel = NSOpenPanel()
-        openPanel.allowedContentTypes = [UTType.json]
-        openPanel.canChooseFiles = true
-        openPanel.canChooseDirectories = false
-        openPanel.allowsMultipleSelection = false
         let languageManager = LanguageManager.shared
-        openPanel.title = languageManager.localizedString(for: "Import VoiceInk Settings")
-        openPanel.message = languageManager.localizedString(for: "Choose a settings file to import. This will overwrite ALL settings (prompts, power modes, dictionary, general app settings).")
 
         DispatchQueue.main.async {
+            let openPanel = NSOpenPanel()
+            openPanel.allowedContentTypes = [UTType.json]
+            openPanel.canChooseFiles = true
+            openPanel.canChooseDirectories = false
+            openPanel.allowsMultipleSelection = false
+            openPanel.title = languageManager.localizedString(for: "Import VoiceInk Settings")
+            openPanel.message = languageManager.localizedString(for: "Choose a settings file to import. This will overwrite ALL settings (prompts, power modes, dictionary, general app settings).")
+
             if openPanel.runModal() == .OK {
                 guard let url = openPanel.url else {
                     self.showAlert(
