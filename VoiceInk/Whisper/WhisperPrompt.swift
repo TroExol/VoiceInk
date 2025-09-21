@@ -31,7 +31,7 @@ class WhisperPrompt: ObservableObject {
         "de": "Hallo, wie geht es dir? Schön dich kennenzulernen.",
         "it": "Ciao, come stai? Piacere di conoscerti.",
         "pt": "Olá, como você está? Prazer em conhecê-lo.",
-        "ru": "Здравствуйте, как ваши дела? Приятно познакомиться.",
+        "ru": "Hello, how are you doing? Nice to meet you.",
         "pl": "Cześć, jak się masz? Miło cię poznać.",
         "nl": "Hallo, hoe gaat het? Aangenaam kennis te maken.",
         "tr": "Merhaba, nasılsın? Tanıştığımıza memnun oldum.",
