@@ -102,6 +102,10 @@
 "Correct Spellings" = "Правильные написания";
 "Dictionary Items Count Format" = "Элементы словаря (%d)";
 "Dictionary duplicate word message" = "\"%@\" уже есть в словаре";
+"Dictionary empty word message" = "Слово не может быть пустым";
+"Edit word" = "Редактировать слово";
+"Save word" = "Сохранить слово";
+"Cancel editing" = "Отменить редактирование";
 "HotkeyOption.None" = "Нет";
 "HotkeyOption.RightOption" = "Правый Option (⌥)";
 "HotkeyOption.LeftOption" = "Левый Option (⌥)";

@@ -38,7 +38,12 @@ class DictionaryManager: ObservableObject {
     @Published var items: [DictionaryItem] = []
     private let saveKey = "CustomDictionaryItems"
     private let whisperPrompt: WhisperPrompt
-    
+
+    enum UpdateError: Error {
+        case empty
+        case duplicate
+    }
+
     init(whisperPrompt: WhisperPrompt) {
         self.whisperPrompt = whisperPrompt
         loadItems()
@@ -73,7 +78,30 @@ class DictionaryManager: ObservableObject {
         items.removeAll(where: { $0.word == word })
         saveItems()
     }
-    
+
+    func updateWord(_ item: DictionaryItem, with newWord: String) throws {
+        let normalizedWord = newWord.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !normalizedWord.isEmpty else {
+            throw UpdateError.empty
+        }
+
+        let lowercasedWord = normalizedWord.lowercased()
+
+        guard !items.contains(where: { $0.id != item.id && $0.word.lowercased() == lowercasedWord }) else {
+            throw UpdateError.duplicate
+        }
+
+        guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
+
+        if items[index].word == normalizedWord {
+            return
+        }
+
+        items[index].word = normalizedWord
+        saveItems()
+    }
+
     var allWords: [String] {
         items.map { $0.word }
     }
@@ -149,9 +177,23 @@ struct DictionaryView: View {
                         
                         LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
                             ForEach(dictionaryManager.items) { item in
-                                DictionaryItemView(item: item) {
-                                    dictionaryManager.removeWord(item.word)
-                                }
+                                DictionaryItemView(
+                                    item: item,
+                                    onDelete: {
+                                        dictionaryManager.removeWord(item.word)
+                                    },
+                                    onUpdate: { updatedWord in
+                                        do {
+                                            try dictionaryManager.updateWord(item, with: updatedWord)
+                                            return true
+                                        } catch let error as DictionaryManager.UpdateError {
+                                            handleUpdateError(error, attemptedWord: updatedWord)
+                                            return false
+                                        } catch {
+                                            return false
+                                        }
+                                    }
+                                )
                             }
                         }
                         .padding(.vertical, 4)
@@ -172,7 +214,7 @@ struct DictionaryView: View {
     private func addWords() {
         let input = newWord.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !input.isEmpty else { return }
-        
+
         let parts = input
             .split(separator: ",")
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -194,7 +236,7 @@ struct DictionaryView: View {
             newWord = ""
             return
         }
-        
+
         for word in parts {
             let lower = word.lowercased()
             if !dictionaryManager.items.contains(where: { $0.word.lowercased() == lower }) {
@@ -203,33 +245,121 @@ struct DictionaryView: View {
         }
         newWord = ""
     }
+
+    private func handleUpdateError(_ error: DictionaryManager.UpdateError, attemptedWord: String) {
+        switch error {
+        case .duplicate:
+            let format = languageManager.localizedString(
+                for: "Dictionary duplicate word message",
+                defaultValue: "'%@' is already in the dictionary"
+            )
+            alertMessage = String(format: format, locale: languageManager.locale, attemptedWord)
+        case .empty:
+            alertMessage = languageManager.localizedString(
+                for: "Dictionary empty word message",
+                defaultValue: "Word can't be empty"
+            )
+        }
+        showAlert = true
+    }
 }
 
 struct DictionaryItemView: View {
     let item: DictionaryItem
     let onDelete: () -> Void
-    @State private var isHovered = false
-    
+    let onUpdate: (String) -> Bool
+
+    @State private var isDeleteHovered = false
+    @State private var isEditHovered = false
+    @State private var isConfirmHovered = false
+    @State private var isCancelHovered = false
+    @State private var isEditing = false
+    @State private var editedWord: String
+    @FocusState private var isTextFieldFocused: Bool
+
+    init(item: DictionaryItem, onDelete: @escaping () -> Void, onUpdate: @escaping (String) -> Bool) {
+        self.item = item
+        self.onDelete = onDelete
+        self.onUpdate = onUpdate
+        _editedWord = State(initialValue: item.word)
+    }
+
     var body: some View {
         HStack(spacing: 6) {
-            Text(item.word)
-                .font(.system(size: 13))
-                .lineLimit(1)
-                .foregroundColor(.primary)
-            
-            Spacer(minLength: 8)
-            
-            Button(action: onDelete) {
-                Image(systemName: "xmark.circle.fill")
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(isHovered ? .red : .secondary)
-                    .contentTransition(.symbolEffect(.replace))
+            if isEditing {
+                TextField("", text: $editedWord)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 13))
+                    .frame(maxWidth: .infinity)
+                    .focused($isTextFieldFocused)
+                    .onSubmit(commitEdit)
+                    .onExitCommand(perform: cancelEditing)
+            } else {
+                Text(item.word)
+                    .font(.system(size: 13))
+                    .lineLimit(1)
+                    .foregroundColor(.primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .onTapGesture(count: 2, perform: startEditing)
             }
-            .buttonStyle(.borderless)
-            .localizedHelp("Remove word")
-            .onHover { hover in
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    isHovered = hover
+
+            Spacer(minLength: 8)
+
+            if isEditing {
+                Button(action: commitEdit) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(isConfirmHovered ? .green : .blue)
+                        .contentTransition(.symbolEffect(.replace))
+                }
+                .buttonStyle(.borderless)
+                .localizedHelp("Save word")
+                .onHover { hover in
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isConfirmHovered = hover
+                    }
+                }
+
+                Button(action: cancelEditing) {
+                    Image(systemName: "arrow.uturn.backward.circle.fill")
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(isCancelHovered ? .orange : .secondary)
+                        .contentTransition(.symbolEffect(.replace))
+                }
+                .buttonStyle(.borderless)
+                .localizedHelp("Cancel editing")
+                .onHover { hover in
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isCancelHovered = hover
+                    }
+                }
+            } else {
+                Button(action: startEditing) {
+                    Image(systemName: "pencil.circle.fill")
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(isEditHovered ? .blue : .secondary)
+                        .contentTransition(.symbolEffect(.replace))
+                }
+                .buttonStyle(.borderless)
+                .localizedHelp("Edit word")
+                .onHover { hover in
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isEditHovered = hover
+                    }
+                }
+
+                Button(action: onDelete) {
+                    Image(systemName: "xmark.circle.fill")
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(isDeleteHovered ? .red : .secondary)
+                        .contentTransition(.symbolEffect(.replace))
+                }
+                .buttonStyle(.borderless)
+                .localizedHelp("Remove word")
+                .onHover { hover in
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isDeleteHovered = hover
+                    }
                 }
             }
         }
@@ -244,5 +374,46 @@ struct DictionaryItemView: View {
                 .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
         }
         .shadow(color: Color.black.opacity(0.05), radius: 2, y: 1)
+        .onChange(of: item.word) { newValue in
+            if !isEditing {
+                editedWord = newValue
+            }
+        }
     }
-} 
+
+    private func startEditing() {
+        guard !isEditing else { return }
+        editedWord = item.word
+        withAnimation(.easeInOut(duration: 0.2)) {
+            isEditing = true
+        }
+        DispatchQueue.main.async {
+            isTextFieldFocused = true
+        }
+    }
+
+    private func commitEdit() {
+        let trimmedWord = editedWord.trimmingCharacters(in: .whitespacesAndNewlines)
+        let success = onUpdate(trimmedWord)
+
+        if success {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isEditing = false
+            }
+            editedWord = trimmedWord.isEmpty ? item.word : trimmedWord
+            isTextFieldFocused = false
+        } else {
+            DispatchQueue.main.async {
+                isTextFieldFocused = true
+            }
+        }
+    }
+
+    private func cancelEditing() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            isEditing = false
+        }
+        editedWord = item.word
+        isTextFieldFocused = false
+    }
+}
