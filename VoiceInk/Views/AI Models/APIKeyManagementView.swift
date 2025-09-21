@@ -42,10 +42,12 @@ struct APIKeyManagementView: View {
                         Circle()
                             .fill(Color.green)
                             .frame(width: 8, height: 8)
-                        Text("Connected to")
-                            .font(.caption)
-                        Text(aiService.selectedProvider.rawValue)
-                            .font(.caption.bold())
+                        HStack(spacing: 3) {
+                            Text("Connected to")
+                                .font(.caption)
+                            Text(aiService.selectedProvider.rawValue)
+                                .font(.caption.bold())
+                        }
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
