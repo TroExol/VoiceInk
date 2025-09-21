@@ -412,23 +412,21 @@ struct TranscriptionHistoryView: View {
     }
     
     private func selectionCountText(for count: Int) -> String {
-        let languageManager = LanguageManager.shared
-        let format = languageManager.localizedString(
+        LanguageManager.shared.localizedString(
             for: "history.selectionCount",
             defaultValue: "%ld selected",
-            table: "Localizable"
+            table: "Localizable",
+            arguments: count
         )
-
-        if format.contains("%#@") {
-            return String.localizedStringWithFormat(format, count)
-        }
-
-        return String(format: format, locale: languageManager.locale, count)
     }
 
     private func deleteConfirmationMessage(for count: Int) -> String {
-        let format = NSLocalizedString("history.deleteConfirmationMessage", comment: "Delete confirmation prompt in history section")
-        return String.localizedStringWithFormat(format, count)
+        LanguageManager.shared.localizedString(
+            for: "history.deleteConfirmationMessage",
+            defaultValue: "This action cannot be undone. Are you sure you want to delete %ld item(s)?",
+            table: "Localizable",
+            arguments: count
+        )
     }
     
     private func toggleSelection(_ transcription: Transcription) {
