@@ -4,14 +4,10 @@ import AppKit
 
 struct EmailSupport {
     static func generateSupportEmailURL() -> URL? {
-        let languageManager = LanguageManager.shared
-
-        let subject = languageManager.localizedString(for: "support.email.subject")
-
-        let systemInfoFormat = languageManager.localizedString(for: "support.email.systemInfo")
+        let subject = String(localized: "support.email.subject")
         let systemInfo = String(
-            format: systemInfoFormat,
-            locale: languageManager.locale,
+            format: String(localized: "support.email.systemInfo"),
+            locale: Locale.current,
             Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown",
             ProcessInfo.processInfo.operatingSystemVersionString,
             getMacModel(),
@@ -19,13 +15,12 @@ struct EmailSupport {
             getMemoryInfo()
         )
 
-        let bodyFormat = languageManager.localizedString(for: "support.email.body")
         let body = String(
-            format: bodyFormat,
-            locale: languageManager.locale,
+            format: String(localized: "support.email.body"),
+            locale: Locale.current,
             systemInfo
         )
-
+        
         let encodedSubject = subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         let encodedBody = body.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         

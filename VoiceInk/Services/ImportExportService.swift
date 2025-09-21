@@ -64,6 +64,7 @@ class ImportExportService {
         }
     }
 
+    @MainActor
     func exportSettings(enhancementService: AIEnhancementService, whisperPrompt: WhisperPrompt, hotkeyManager: HotkeyManager, menuBarManager: MenuBarManager, mediaController: MediaController, playbackController: PlaybackController, soundManager: SoundManager, whisperState: WhisperState) {
         let powerModeManager = PowerModeManager.shared
         let emojiManager = EmojiManager.shared
@@ -124,13 +125,13 @@ class ImportExportService {
         do {
             let jsonData = try encoder.encode(exportedSettings)
 
-            Task { @MainActor [jsonData, languageManager] in
-                let savePanel = NSSavePanel()
-                savePanel.allowedContentTypes = [UTType.json]
-                savePanel.nameFieldStringValue = "VoiceInk_Settings_Backup.json"
-                savePanel.title = languageManager.localizedString(for: "Export VoiceInk Settings")
-                savePanel.message = languageManager.localizedString(for: "Choose a location to save your settings.")
+            let savePanel = NSSavePanel()
+            savePanel.allowedContentTypes = [UTType.json]
+            savePanel.nameFieldStringValue = "VoiceInk_Settings_Backup.json"
+            savePanel.title = languageManager.localizedString(for: "Export VoiceInk Settings")
+            savePanel.message = languageManager.localizedString(for: "Choose a location to save your settings.")
 
+            DispatchQueue.main.async {
                 if savePanel.runModal() == .OK {
                     if let url = savePanel.url {
                         do {
@@ -163,11 +164,6 @@ class ImportExportService {
                                 message: message
                             )
                         }
-                    } else {
-                        self.showAlert(
-                            title: languageManager.localizedString(for: "Export Error"),
-                            message: languageManager.localizedString(for: "alerts.exportSettings.missingURL", defaultValue: "Could not determine a file location for your export.")
-                        )
                     }
                 } else {
                     self.showAlert(
@@ -191,9 +187,7 @@ class ImportExportService {
                 locale: languageManager.locale,
                 error.localizedDescription
             )
-            Task { @MainActor [languageManager, message] in
-                self.showAlert(title: languageManager.localizedString(for: "Export Error"), message: message)
-            }
+            self.showAlert(title: languageManager.localizedString(for: "Export Error"), message: message)
         }
     }
 

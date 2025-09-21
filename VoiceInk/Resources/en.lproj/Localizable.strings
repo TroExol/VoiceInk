@@ -130,7 +130,6 @@
 "alerts.exportSettings.successMessage" = "Your settings have been successfully exported to %@.";
 "Import Error" = "Import Error";
 "alerts.exportSettings.writeError" = "Could not save settings to file: %@.";
-"alerts.exportSettings.missingURL" = "Could not determine a file location for your export.";
 "Import Successful" = "Import Successful";
 "Save Transcription" = "Save Transcription";
 "Select a Whisper ggml .bin model" = "Select a Whisper ggml .bin model";
