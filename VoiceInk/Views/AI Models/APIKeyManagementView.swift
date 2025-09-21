@@ -15,6 +15,7 @@ struct APIKeyManagementView: View {
     @State private var isEditingCustomProvider = false
     @State private var providerTimeout: Double = 30
     @State private var providerAttempts: Int = 3
+    @FocusState private var isCustomAPIKeyFieldFocused: Bool
     
     private let timeoutFormatter: NumberFormatter = {
         let formatter = NumberFormatter()
@@ -263,7 +264,17 @@ struct APIKeyManagementView: View {
                             Spacer()
                             if aiService.isAPIKeyValid {
                                 Button(isEditingCustomProvider ? "Done" : "Edit") {
-                                    isEditingCustomProvider.toggle()
+                                    if isEditingCustomProvider {
+                                        isEditingCustomProvider = false
+                                        apiKey = ""
+                                        isCustomAPIKeyFieldFocused = false
+                                    } else {
+                                        isEditingCustomProvider = true
+                                        apiKey = ""
+                                        DispatchQueue.main.async {
+                                            isCustomAPIKeyFieldFocused = true
+                                        }
+                                    }
                                 }
                                 .buttonStyle(.borderless)
                                 .controlSize(.small)
@@ -294,26 +305,27 @@ struct APIKeyManagementView: View {
                                 .font(.system(.body, design: .monospaced))
                                 .disabled(true)
                         } else {
-                            if apiKey.isEmpty {
-                                SecureField(
-                                    "API Key",
-                                    text: Binding(
-                                        get: { String(repeating: "•", count: max(aiService.apiKey.count, 8)) },
-                                        set: { apiKey = $0 }
-                                    )
-                                )
+                            SecureField("API Key", text: $apiKey)
                                 .textFieldStyle(.roundedBorder)
                                 .font(.system(.body, design: .monospaced))
-                            } else {
-                                SecureField("API Key", text: $apiKey)
-                                    .textFieldStyle(.roundedBorder)
-                                    .font(.system(.body, design: .monospaced))
-                            }
+                                .focused($isCustomAPIKeyFieldFocused)
+                                .overlay(alignment: .leading) {
+                                    if !aiService.apiKey.isEmpty &&
+                                        apiKey.isEmpty &&
+                                        !isCustomAPIKeyFieldFocused {
+                                        Text(String(repeating: "•", count: max(aiService.apiKey.count, 8)))
+                                            .font(.system(.body, design: .monospaced))
+                                            .foregroundColor(.secondary)
+                                            .padding(.leading, 6)
+                                            .allowsHitTesting(false)
+                                    }
+                                }
                         }
 
                         HStack {
                             Button(action: {
-                                let keyToVerify = apiKey.isEmpty ? aiService.apiKey : apiKey
+                                let trimmedAPIKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                                let keyToVerify = trimmedAPIKey.isEmpty ? aiService.apiKey : trimmedAPIKey
                                 guard !keyToVerify.isEmpty else { return }
                                 isVerifying = true
                                 aiService.saveAPIKey(keyToVerify) { success in
@@ -321,6 +333,7 @@ struct APIKeyManagementView: View {
                                     if success {
                                         isEditingCustomProvider = false
                                         apiKey = ""
+                                        isCustomAPIKeyFieldFocused = false
                                     } else {
                                         alertMessage = "Invalid API key. Please check and try again."
                                         showAlert = true
@@ -339,8 +352,20 @@ struct APIKeyManagementView: View {
                                 }
                             }
                             .disabled((aiService.customBaseURL.isEmpty || aiService.customModel.isEmpty) || (aiService.apiKey.isEmpty && apiKey.isEmpty))
-                            
+
                             Spacer()
+
+                            if !aiService.apiKey.isEmpty {
+                                Button(role: .destructive) {
+                                    aiService.clearAPIKey()
+                                    apiKey = ""
+                                    isEditingCustomProvider = false
+                                    isCustomAPIKeyFieldFocused = false
+                                } label: {
+                                    Label("Remove Key", systemImage: "trash")
+                                }
+                                .buttonStyle(.borderless)
+                            }
                         }
                     }
                 }
