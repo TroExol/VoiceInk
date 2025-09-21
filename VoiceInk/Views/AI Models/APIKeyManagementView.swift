@@ -465,11 +465,12 @@ struct APIKeyManagementView: View {
                         }
 
                         Stepper(value: $providerAttempts, in: 1...10) {
-                            let format = languageManager.localizedString(
+                            let text = languageManager.localizedString(
                                 for: "enhancement.maxAttempts",
-                                defaultValue: "Max attempts: %d"
+                                defaultValue: "Max attempts: %d",
+                                arguments: providerAttempts
                             )
-                            Text(String(format: format, locale: languageManager.locale, providerAttempts))
+                            Text(text)
                         }
 
                         Text("Each attempt times out after interval × remaining attempts.")

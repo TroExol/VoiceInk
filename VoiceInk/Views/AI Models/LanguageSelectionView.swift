@@ -207,10 +207,10 @@ struct LanguageSelectionView: View {
     }
 
     private func localizedCurrentModelText(_ displayName: String) -> String {
-        let format = languageManager.localizedString(
+        languageManager.localizedString(
             for: "models.currentModel",
-            defaultValue: "Current model: %@"
+            defaultValue: "Current model: %@",
+            arguments: displayName
         )
-        return String(format: format, locale: languageManager.locale, displayName)
     }
 }

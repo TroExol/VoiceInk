@@ -128,17 +128,12 @@ struct DictionaryView: View {
             // Words List
             if !dictionaryManager.items.isEmpty {
                 VStack(alignment: .leading, spacing: 12) {
-                    let format = languageManager.localizedString(
+                    let countText = languageManager.localizedString(
                         for: "Dictionary Items Count Format",
-                        defaultValue: "Dictionary Items (%d)"
+                        defaultValue: "Dictionary Items (%d)",
+                        arguments: dictionaryManager.items.count
                     )
-                    Text(
-                        String(
-                            format: format,
-                            locale: languageManager.locale,
-                            dictionaryManager.items.count
-                        )
-                    )
+                    Text(countText)
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.secondary)
                     
@@ -182,11 +177,11 @@ struct DictionaryView: View {
         
         if parts.count == 1, let word = parts.first {
             if dictionaryManager.items.contains(where: { $0.word.lowercased() == word.lowercased() }) {
-                let format = languageManager.localizedString(
+                alertMessage = languageManager.localizedString(
                     for: "Dictionary duplicate word message",
-                    defaultValue: "'%@' is already in the dictionary"
+                    defaultValue: "'%@' is already in the dictionary",
+                    arguments: word
                 )
-                alertMessage = String(format: format, locale: languageManager.locale, word)
                 showAlert = true
                 return
             }

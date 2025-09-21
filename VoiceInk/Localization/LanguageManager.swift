@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 enum AppLanguage: String, CaseIterable, Identifiable {
@@ -67,10 +68,33 @@ final class LanguageManager: ObservableObject {
     }
 
     func localizedString(for key: String, defaultValue: String? = nil, table: String? = nil) -> String {
+        resolvedString(for: key, defaultValue: defaultValue, table: table)
+    }
+
+    func localizedString(
+        for key: String,
+        defaultValue: String? = nil,
+        table: String? = nil,
+        arguments: CVarArg...
+    ) -> String {
+        let format = resolvedString(for: key, defaultValue: defaultValue, table: table)
+        guard !arguments.isEmpty else { return format }
+        return formattedString(format, arguments: arguments)
+    }
+
+    private func resolvedString(for key: String, defaultValue: String?, table: String?) -> String {
         let fallback = defaultValue ?? key
         if let bundle = activeBundle {
             return bundle.localizedString(forKey: key, value: fallback, table: table)
         }
         return Bundle.main.localizedString(forKey: key, value: fallback, table: table)
+    }
+
+    private func formattedString(_ format: String, arguments: [CVarArg]) -> String {
+        let localeIdentifier = locale.identifier
+        let nsLocale = NSLocale(localeIdentifier: localeIdentifier)
+        return withVaList(arguments) { pointer in
+            NSString(format: format, locale: nsLocale, arguments: pointer) as String
+        }
     }
 }
