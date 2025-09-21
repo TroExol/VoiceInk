@@ -125,7 +125,7 @@ class ImportExportService {
         do {
             let jsonData = try encoder.encode(exportedSettings)
 
-            DispatchQueue.main.async {
+            let presentSavePanel = {
                 let savePanel = NSSavePanel()
                 savePanel.allowedContentTypes = [UTType.json]
                 savePanel.nameFieldStringValue = "VoiceInk_Settings_Backup.json"
@@ -172,6 +172,12 @@ class ImportExportService {
                     )
                 }
             }
+
+            if Thread.isMainThread {
+                presentSavePanel()
+            } else {
+                DispatchQueue.main.sync(execute: presentSavePanel)
+            }
         } catch {
             let messageFormat = languageManager.localizedString(
                 for: "alerts.exportSettings.encodeError",
@@ -190,7 +196,7 @@ class ImportExportService {
     func importSettings(enhancementService: AIEnhancementService, whisperPrompt: WhisperPrompt, hotkeyManager: HotkeyManager, menuBarManager: MenuBarManager, mediaController: MediaController, playbackController: PlaybackController, soundManager: SoundManager, whisperState: WhisperState) {
         let languageManager = LanguageManager.shared
 
-        DispatchQueue.main.async {
+        let presentOpenPanel = {
             let openPanel = NSOpenPanel()
             openPanel.allowedContentTypes = [UTType.json]
             openPanel.canChooseFiles = true
@@ -229,7 +235,7 @@ class ImportExportService {
 
                     let predefinedPrompts = enhancementService.customPrompts.filter { $0.isPredefined }
                     enhancementService.customPrompts = predefinedPrompts + importedSettings.customPrompts
-                    
+
                     let powerModeManager = PowerModeManager.shared
                     powerModeManager.configurations = importedSettings.powerModeConfigs
                     powerModeManager.saveConfigurations()
@@ -296,7 +302,7 @@ class ImportExportService {
                         if let recType = general.recorderType {
                             whisperState.recorderType = recType
                         }
-                        
+
                         if let transcriptionCleanup = general.isTranscriptionCleanupEnabled {
                             UserDefaults.standard.set(transcriptionCleanup, forKey: self.keyIsTranscriptionCleanupEnabled)
                         }
@@ -350,6 +356,12 @@ class ImportExportService {
                         message: languageManager.localizedString(for: "The settings import operation was canceled.")
                     )
             }
+        }
+
+        if Thread.isMainThread {
+            presentOpenPanel()
+        } else {
+            DispatchQueue.main.sync(execute: presentOpenPanel)
         }
     }
 
