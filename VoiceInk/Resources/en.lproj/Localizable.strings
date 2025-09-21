@@ -102,6 +102,10 @@
 "Correct Spellings" = "Correct Spellings";
 "Dictionary Items Count Format" = "Dictionary Items (%d)";
 "Dictionary duplicate word message" = "'%@' is already in the dictionary";
+"Dictionary empty word message" = "Word can't be empty";
+"Edit word" = "Edit word";
+"Save word" = "Save word";
+"Cancel editing" = "Cancel editing";
 "HotkeyOption.None" = "None";
 "HotkeyOption.RightOption" = "Right Option (⌥)";
 "HotkeyOption.LeftOption" = "Left Option (⌥)";
