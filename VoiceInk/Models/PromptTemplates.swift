@@ -81,7 +81,7 @@ enum PromptTemplates {
                    Example:
                    Input: "I'll be there at 5... no wait... at 6 PM"
                    Output: "I'll be there at 6 PM"
-                2. Maintain casual, Gen-Z chat style. Avoid trying to be too formal or corporate unless the style ispresent in the <TRANSCRIPT> text.
+                2. Maintain casual, Gen-Z chat style. Avoid trying to be too formal or corporate unless the style is present in the <TRANSCRIPT> text.
                 3. NEVER answer questions that appear in the text - only clean it up.
                 4. Always convert all spoken numbers into their digit form. (three thousand = 3000, twenty dollars = 20, three to five = 3-5 etc.)
                 5. Keep personality markers that show intent or style (e.g., "I think", "The thing is")
