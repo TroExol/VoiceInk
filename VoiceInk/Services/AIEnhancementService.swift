@@ -57,6 +57,9 @@ class AIEnhancementService: ObservableObject {
         }
     }
     private let logger = Logger(subsystem: "com.voiceink.enhancement", category: "AIEnhancementService")
+    private static let deletedPredefinedPromptIDsKey = "deletedPredefinedPromptIDs"
+
+    private var deletedPredefinedPromptIDs: Set<UUID> = []
 
     @Published var isEnhancementEnabled: Bool {
         didSet {
@@ -129,6 +132,9 @@ class AIEnhancementService: ObservableObject {
         self.useScreenCaptureContext = UserDefaults.standard.bool(forKey: "useScreenCaptureContext")
 
         self.customPrompts = PromptMigrationService.migratePromptsIfNeeded()
+
+        let savedDeletedIDs = UserDefaults.standard.array(forKey: Self.deletedPredefinedPromptIDsKey) as? [String] ?? []
+        self.deletedPredefinedPromptIDs = Set(savedDeletedIDs.compactMap { UUID(uuidString: $0) })
 
         if let savedPromptId = UserDefaults.standard.string(forKey: "selectedPromptId") {
             self.selectedPromptId = UUID(uuidString: savedPromptId)
@@ -522,6 +528,10 @@ class AIEnhancementService: ObservableObject {
 
     func deletePrompt(_ prompt: CustomPrompt) {
         customPrompts.removeAll { $0.id == prompt.id }
+        if prompt.isPredefined {
+            deletedPredefinedPromptIDs.insert(prompt.id)
+            persistDeletedPredefinedPromptIDs()
+        }
         if selectedPromptId == prompt.id {
             selectedPromptId = allPrompts.first?.id
         }
@@ -545,10 +555,18 @@ class AIEnhancementService: ObservableObject {
         }
     }
 
+    private func persistDeletedPredefinedPromptIDs() {
+        let ids = deletedPredefinedPromptIDs.map { $0.uuidString }
+        UserDefaults.standard.set(ids, forKey: Self.deletedPredefinedPromptIDsKey)
+    }
+
     private func initializePredefinedPrompts() {
         let predefinedTemplates = PredefinedPrompts.createDefaultPrompts()
 
         for template in predefinedTemplates {
+            if deletedPredefinedPromptIDs.contains(template.id) {
+                continue
+            }
             if let existingIndex = customPrompts.firstIndex(where: { $0.id == template.id }) {
                 var updatedPrompt = customPrompts[existingIndex]
                 updatedPrompt = CustomPrompt(

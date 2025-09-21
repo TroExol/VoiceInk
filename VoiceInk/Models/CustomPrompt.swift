@@ -254,7 +254,7 @@ extension CustomPrompt {
                     }
                 }
                 
-                if let onDelete = onDelete, !isPredefined {
+                if let onDelete = onDelete {
                     Button(role: .destructive) {
                         onDelete(self)
                     } label: {
