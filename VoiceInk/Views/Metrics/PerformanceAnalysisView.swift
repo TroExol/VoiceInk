@@ -2,6 +2,7 @@ import SwiftUI
 
 struct PerformanceAnalysisView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.locale) private var locale
     let transcriptions: [Transcription]
     private let analysis: AnalysisResult
 
@@ -126,6 +127,7 @@ struct PerformanceAnalysisView: View {
         let formatter = DateComponentsFormatter()
         formatter.allowedUnits = [.minute, .second]
         formatter.unitsStyle = .abbreviated
+        formatter.locale = locale
         return formatter.string(from: duration) ?? "0s"
     }
 
@@ -313,6 +315,7 @@ struct SystemInfoCard: View {
 
 struct TranscriptionModelCard: View {
     let modelStat: PerformanceAnalysisView.ModelStat
+    @Environment(\.locale) private var locale
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -372,6 +375,7 @@ struct TranscriptionModelCard: View {
         let formatter = DateComponentsFormatter()
         formatter.allowedUnits = [.minute, .second]
         formatter.unitsStyle = .abbreviated
+        formatter.locale = locale
         return formatter.string(from: duration) ?? "0s"
     }
 }
