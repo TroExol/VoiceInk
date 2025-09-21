@@ -397,10 +397,10 @@ class HotkeyManager: ObservableObject {
             isKeyPressed = flags.contains(.command)
         case .rightShift:
             isKeyPressed = flags.contains(.shift)
-        case .custom, .none:
+        case .optionSpace, .custom, .none:
             return // Should not reach here
         }
-        
+
         processKeyPress(isKeyPressed: isKeyPressed)
     }
     
