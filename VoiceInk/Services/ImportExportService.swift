@@ -125,13 +125,13 @@ class ImportExportService {
         do {
             let jsonData = try encoder.encode(exportedSettings)
 
-            let savePanel = NSSavePanel()
-            savePanel.allowedContentTypes = [UTType.json]
-            savePanel.nameFieldStringValue = "VoiceInk_Settings_Backup.json"
-            savePanel.title = languageManager.localizedString(for: "Export VoiceInk Settings")
-            savePanel.message = languageManager.localizedString(for: "Choose a location to save your settings.")
-
             DispatchQueue.main.async {
+                let savePanel = NSSavePanel()
+                savePanel.allowedContentTypes = [UTType.json]
+                savePanel.nameFieldStringValue = "VoiceInk_Settings_Backup.json"
+                savePanel.title = languageManager.localizedString(for: "Export VoiceInk Settings")
+                savePanel.message = languageManager.localizedString(for: "Choose a location to save your settings.")
+
                 if savePanel.runModal() == .OK {
                     if let url = savePanel.url {
                         do {
