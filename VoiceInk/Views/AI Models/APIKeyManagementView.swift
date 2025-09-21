@@ -294,21 +294,9 @@ struct APIKeyManagementView: View {
                                 .font(.system(.body, design: .monospaced))
                                 .disabled(true)
                         } else {
-                            if apiKey.isEmpty {
-                                SecureField(
-                                    "API Key",
-                                    text: Binding(
-                                        get: { String(repeating: "•", count: max(aiService.apiKey.count, 8)) },
-                                        set: { apiKey = $0 }
-                                    )
-                                )
+                            SecureField("API Key", text: $apiKey)
                                 .textFieldStyle(.roundedBorder)
                                 .font(.system(.body, design: .monospaced))
-                            } else {
-                                SecureField("API Key", text: $apiKey)
-                                    .textFieldStyle(.roundedBorder)
-                                    .font(.system(.body, design: .monospaced))
-                            }
                         }
 
                         HStack {
@@ -509,6 +497,14 @@ struct APIKeyManagementView: View {
         .onChange(of: aiService.isAPIKeyValid) { oldValue, newValue in
             if !newValue {
                 isEditingCustomProvider = true
+            }
+        }
+        .onChange(of: isEditingCustomProvider) { _, newValue in
+            guard aiService.selectedProvider == .custom else { return }
+            if newValue {
+                apiKey = aiService.apiKey
+            } else {
+                apiKey = ""
             }
         }
         .onChange(of: providerTimeout) { _, newValue in
