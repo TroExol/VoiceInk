@@ -131,6 +131,7 @@
 "alerts.exportSettings.successMessage" = "Ваши настройки были успешно экспортированы в %@.";
 "Import Error" = "Ошибка импорта";
 "alerts.exportSettings.writeError" = "Не удалось сохранить настройки в файл: %@.";
+"alerts.exportSettings.missingURL" = "Не удалось определить путь для сохранения файла.";
 "Import Successful" = "Импорт выполнен успешно";
 "Save Transcription" = "Сохранить транскрипцию";
 "Select a Whisper ggml .bin model" = "Выберите модель Whisper ggml .bin";

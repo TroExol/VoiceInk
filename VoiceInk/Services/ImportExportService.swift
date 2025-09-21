@@ -131,46 +131,49 @@ class ImportExportService {
             savePanel.title = languageManager.localizedString(for: "Export VoiceInk Settings")
             savePanel.message = languageManager.localizedString(for: "Choose a location to save your settings.")
 
-            DispatchQueue.main.async {
-                if savePanel.runModal() == .OK {
-                    if let url = savePanel.url {
-                        do {
-                            try jsonData.write(to: url)
-                            let messageFormat = languageManager.localizedString(
-                                for: "alerts.exportSettings.successMessage",
-                                defaultValue: "Your settings have been successfully exported to %@."
-                            )
-                            let message = String(
-                                format: messageFormat,
-                                locale: languageManager.locale,
-                                url.lastPathComponent
-                            )
-                            self.showAlert(
-                                title: languageManager.localizedString(for: "Export Successful"),
-                                message: message
-                            )
-                        } catch {
-                            let messageFormat = languageManager.localizedString(
-                                for: "alerts.exportSettings.writeError",
-                                defaultValue: "Could not save settings to file: %@."
-                            )
-                            let message = String(
-                                format: messageFormat,
-                                locale: languageManager.locale,
-                                error.localizedDescription
-                            )
-                            self.showAlert(
-                                title: languageManager.localizedString(for: "Export Error"),
-                                message: message
-                            )
-                        }
+            if savePanel.runModal() == .OK {
+                if let url = savePanel.url {
+                    do {
+                        try jsonData.write(to: url)
+                        let messageFormat = languageManager.localizedString(
+                            for: "alerts.exportSettings.successMessage",
+                            defaultValue: "Your settings have been successfully exported to %@."
+                        )
+                        let message = String(
+                            format: messageFormat,
+                            locale: languageManager.locale,
+                            url.lastPathComponent
+                        )
+                        self.showAlert(
+                            title: languageManager.localizedString(for: "Export Successful"),
+                            message: message
+                        )
+                    } catch {
+                        let messageFormat = languageManager.localizedString(
+                            for: "alerts.exportSettings.writeError",
+                            defaultValue: "Could not save settings to file: %@."
+                        )
+                        let message = String(
+                            format: messageFormat,
+                            locale: languageManager.locale,
+                            error.localizedDescription
+                        )
+                        self.showAlert(
+                            title: languageManager.localizedString(for: "Export Error"),
+                            message: message
+                        )
                     }
                 } else {
                     self.showAlert(
-                        title: languageManager.localizedString(for: "Export Canceled"),
-                        message: languageManager.localizedString(for: "The settings export operation was canceled.")
+                        title: languageManager.localizedString(for: "Export Error"),
+                        message: languageManager.localizedString(for: "alerts.exportSettings.missingURL", defaultValue: "Could not determine a file location for your export.")
                     )
                 }
+            } else {
+                self.showAlert(
+                    title: languageManager.localizedString(for: "Export Canceled"),
+                    message: languageManager.localizedString(for: "The settings export operation was canceled.")
+                )
             }
         } catch {
             let messageFormat = languageManager.localizedString(
