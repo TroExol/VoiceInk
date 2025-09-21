@@ -167,8 +167,8 @@ struct ContentView: View {
                 selectedView: $selectedView,
                 hoveredView: $hoveredView
             )
-            .frame(width: 200)
-            .navigationSplitViewColumnWidth(200)
+            .frame(minWidth: 200, idealWidth: 200)
+            .navigationSplitViewColumnWidth(min: 200, ideal: 200)
         } detail: {
             detailView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
