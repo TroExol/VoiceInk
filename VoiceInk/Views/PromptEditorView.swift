@@ -25,14 +25,6 @@ struct PromptEditorView: View {
     @State private var selectedIcon: PromptIcon
     @State private var description: String
     @State private var triggerWords: [String]
-    @State private var showingPredefinedPrompts = false
-    
-    private var isEditingPredefinedPrompt: Bool {
-        if case .edit(let prompt) = mode {
-            return prompt.isPredefined
-        }
-        return false
-    }
     
     init(mode: Mode) {
         self.mode = mode
@@ -56,7 +48,7 @@ struct PromptEditorView: View {
         VStack(spacing: 0) {
             // Header with modern styling
             HStack {
-                Text(isEditingPredefinedPrompt ? "Edit Trigger Words" : (mode == .add ? "New Prompt" : "Edit Prompt"))
+                Text(mode == .add ? "New Prompt" : "Edit Prompt")
                     .font(.title2)
                     .fontWeight(.bold)
                 Spacer()
@@ -75,7 +67,7 @@ struct PromptEditorView: View {
                             .fontWeight(.medium)
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(isEditingPredefinedPrompt ? false : (title.isEmpty || promptText.isEmpty))
+                    .disabled(title.isEmpty || promptText.isEmpty)
                     .keyboardShortcut(.return, modifiers: .command)
                 }
             }
@@ -87,153 +79,130 @@ struct PromptEditorView: View {
             
             ScrollView {
                 VStack(spacing: 24) {
-                    if isEditingPredefinedPrompt {
-                        // Simplified view for predefined prompts - only trigger word editing
-                        VStack(alignment: .leading, spacing: 16) {
-                            Text("Editing: \(title)")
-                                .font(.title2)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.primary)
-                                .padding(.horizontal)
-                                .padding(.top, 8)
-                            
-                            Text("You can only customize the trigger words for system prompts.")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                                .padding(.horizontal)
-                            
-                            // Trigger Words Field using reusable component
-                            TriggerWordsEditor(triggerWords: $triggerWords)
-                                .padding(.horizontal)
-                        }
-                        .padding(.vertical, 20)
-                        
-                    } else {
-                        // Full editing interface for custom prompts
-                        // Title and Icon Section with improved layout
-                        HStack(spacing: 20) {
-                            // Title Field
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Title")
-                                    .font(.headline)
-                                    .foregroundColor(.secondary)
-                                TextField("Enter a short, descriptive title", text: $title)
-                                    .textFieldStyle(.roundedBorder)
-                                    .font(.body)
-                            }
-                            .frame(maxWidth: .infinity)
-                            
-                            // Icon Selector with preview
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Icon")
-                                    .font(.headline)
-                                    .foregroundColor(.secondary)
-                                
-                                Menu {
-                                    IconMenuContent(selectedIcon: $selectedIcon)
-                                } label: {
-                                    HStack {
-                                        Image(systemName: selectedIcon.rawValue)
-                                            .font(.system(size: 16))
-                                            .foregroundColor(.accentColor)
-                                            .frame(width: 24)
-                                        
-                                        Text(selectedIcon.title)
-                                            .foregroundColor(.primary)
-                                        
-                                        Spacer()
-                                        
-                                        Image(systemName: "chevron.up.chevron.down")
-                                            .font(.system(size: 12))
-                                            .foregroundColor(.secondary)
-                                    }
-                                    .padding(8)
-                                    .background(Color(NSColor.controlBackgroundColor))
-                                    .cornerRadius(8)
-                                }
-                                .frame(width: 180)
-                            }
-                        }
-                        .padding(.horizontal)
-                        .padding(.top, 8)
-                        
-                        // Description Field
+                    // Full editing interface for prompts
+                    // Title and Icon Section with improved layout
+                    HStack(spacing: 20) {
+                        // Title Field
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Description")
+                            Text("Title")
                                 .font(.headline)
                                 .foregroundColor(.secondary)
-                            
-                            Text("Add a brief description of what this prompt does")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            
-                            TextField("Enter a description", text: $description)
+                            TextField("Enter a short, descriptive title", text: $title)
                                 .textFieldStyle(.roundedBorder)
                                 .font(.body)
                         }
-                        .padding(.horizontal)
-                        
-                        // Prompt Text Section with improved styling
+                        .frame(maxWidth: .infinity)
+
+                        // Icon Selector with preview
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Prompt Instructions")
+                            Text("Icon")
                                 .font(.headline)
                                 .foregroundColor(.secondary)
-                            
-                            Text("Define how AI should enhance your transcriptions")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            
-                            TextEditor(text: $promptText)
-                                .font(.system(.body, design: .monospaced))
-                                .frame(minHeight: 200)
-                                .padding(12)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(Color(NSColor.textBackgroundColor))
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
-                                )
+
+                            Menu {
+                                IconMenuContent(selectedIcon: $selectedIcon)
+                            } label: {
+                                HStack {
+                                    Image(systemName: selectedIcon.rawValue)
+                                        .font(.system(size: 16))
+                                        .foregroundColor(.accentColor)
+                                        .frame(width: 24)
+
+                                    Text(selectedIcon.title)
+                                        .foregroundColor(.primary)
+
+                                    Spacer()
+
+                                    Image(systemName: "chevron.up.chevron.down")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.secondary)
+                                }
+                                .padding(8)
+                                .background(Color(NSColor.controlBackgroundColor))
+                                .cornerRadius(8)
+                            }
+                            .frame(width: 180)
                         }
+                    }
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+
+                    // Description Field
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Description")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+
+                        Text("Add a brief description of what this prompt does")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+
+                        TextField("Enter a description", text: $description)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.body)
+                    }
+                    .padding(.horizontal)
+
+                    // Prompt Text Section with improved styling
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Prompt Instructions")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+
+                        Text("Define how AI should enhance your transcriptions")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+
+                        TextEditor(text: $promptText)
+                            .font(.system(.body, design: .monospaced))
+                            .frame(minHeight: 200)
+                            .padding(12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color(NSColor.textBackgroundColor))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                            )
+                    }
+                    .padding(.horizontal)
+
+                    // Trigger Words Field using reusable component
+                    TriggerWordsEditor(triggerWords: $triggerWords)
                         .padding(.horizontal)
-                        
-                        // Trigger Words Field using reusable component
-                        TriggerWordsEditor(triggerWords: $triggerWords)
-                            .padding(.horizontal)
-                        
-                        if case .add = mode {
-                            // Templates Section with modern styling
-                            VStack(alignment: .leading, spacing: 16) {
-                                Text("Start with a Predefined Template")
-                                    .font(.title2)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.primary)
-                                
-                                let columns = [
-                                    GridItem(.flexible(), spacing: 16),
-                                    GridItem(.flexible(), spacing: 16)
-                                ]
-                                
-                                LazyVGrid(columns: columns, spacing: 16) {
-                                    ForEach(PromptTemplates.all) { template in
-                                        CleanTemplateButton(prompt: template) {
-                                            title = template.title
-                                            promptText = template.promptText
-                                            selectedIcon = template.icon
-                                            description = template.description
-                                        }
+
+                    if case .add = mode {
+                        // Templates Section with modern styling
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text("Start with a Predefined Template")
+                                .font(.title2)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.primary)
+
+                            let columns = [
+                                GridItem(.flexible(), spacing: 16),
+                                GridItem(.flexible(), spacing: 16)
+                            ]
+
+                            LazyVGrid(columns: columns, spacing: 16) {
+                                ForEach(PromptTemplates.all) { template in
+                                    CleanTemplateButton(prompt: template) {
+                                        title = template.title
+                                        promptText = template.promptText
+                                        selectedIcon = template.icon
+                                        description = template.description
                                     }
                                 }
                             }
-                            .padding(.horizontal)
-                            .padding(.vertical, 16)
-                            .background(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(Color(.windowBackgroundColor).opacity(0.6))
-                            )
-                            .padding(.horizontal)
                         }
+                        .padding(.horizontal)
+                        .padding(.vertical, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color(.windowBackgroundColor).opacity(0.6))
+                        )
+                        .padding(.horizontal)
                     }
                 }
                 .padding(.vertical, 20)
@@ -255,11 +224,11 @@ struct PromptEditorView: View {
         case .edit(let prompt):
             let updatedPrompt = CustomPrompt(
                 id: prompt.id,
-                title: prompt.isPredefined ? prompt.title : title,
-                promptText: prompt.isPredefined ? prompt.promptText : promptText,
+                title: title,
+                promptText: promptText,
                 isActive: prompt.isActive,
-                icon: prompt.isPredefined ? prompt.icon : selectedIcon,
-                description: prompt.isPredefined ? prompt.description : (description.isEmpty ? nil : description),
+                icon: selectedIcon,
+                description: description.isEmpty ? nil : description,
                 isPredefined: prompt.isPredefined,
                 triggerWords: triggerWords
             )

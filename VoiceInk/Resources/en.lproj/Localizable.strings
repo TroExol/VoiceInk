@@ -38,6 +38,7 @@
 "Advanced" = "Advanced";
 "autoSend.tip" = "Automatically presses Return/Enter after pasting. Handy for chats or forms when no edits are needed.";
 "New Prompt" = "New Prompt";
+"Edit Prompt" = "Edit Prompt";
 "Save Changes" = "Save Changes";
 "models.currentModel" = "Current model: %@";
 "models.englishOnlyHint" = "This is an English-optimized model and only supports English transcription.";
