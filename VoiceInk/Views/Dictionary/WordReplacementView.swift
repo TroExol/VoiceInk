@@ -47,8 +47,9 @@ struct WordReplacementView: View {
     @State private var showAddReplacementModal = false
     @State private var showAlert = false
     @State private var editingOriginal: String? = nil
-    
+
     @State private var alertMessage = ""
+    @EnvironmentObject private var languageManager: LanguageManager
     
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -123,12 +124,14 @@ struct WordReplacementView: View {
         .padding()
         .sheet(isPresented: $showAddReplacementModal) {
             AddReplacementSheet(manager: manager)
+                .environment(\.locale, languageManager.locale)
         }
         // Edit existing replacement
         .sheet(item: $editingOriginal) { original in
             EditReplacementSheet(manager: manager, originalKey: original)
+                .environment(\.locale, languageManager.locale)
         }
-        
+
     }
 }
 
