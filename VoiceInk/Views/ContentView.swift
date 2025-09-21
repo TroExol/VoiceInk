@@ -151,6 +151,7 @@ struct ContentView: View {
     @State private var selectedView: ViewType = .metrics
     @State private var hoveredView: ViewType?
     @State private var hasLoadedData = false
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
     let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
     
     private var isSetupComplete: Bool {
@@ -162,13 +163,13 @@ struct ContentView: View {
     }
 
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             DynamicSidebar(
                 selectedView: $selectedView,
                 hoveredView: $hoveredView
             )
-            .frame(width: 200)
-            .navigationSplitViewColumnWidth(200)
+            .frame(minWidth: 200, idealWidth: 200, maxWidth: 200)
+            .navigationSplitViewColumnWidth(min: 200, ideal: 200, max: 200)
         } detail: {
             detailView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -179,6 +180,11 @@ struct ContentView: View {
         .frame(minWidth: 940, minHeight: 730)
         .onAppear {
             hasLoadedData = true
+        }
+        .onChange(of: columnVisibility) { newValue in
+            if newValue != .all {
+                columnVisibility = .all
+            }
         }
         // inside ContentView body:
         .onReceive(NotificationCenter.default.publisher(for: .navigateToDestination)) { notification in
