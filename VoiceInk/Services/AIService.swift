@@ -228,7 +228,7 @@ class AIService: ObservableObject {
            let provider = AIProvider(rawValue: savedProvider) {
             self.selectedProvider = provider
         } else {
-            self.selectedProvider = .gemini
+            self.selectedProvider = .custom
         }
         
         if selectedProvider.requiresAPIKey {

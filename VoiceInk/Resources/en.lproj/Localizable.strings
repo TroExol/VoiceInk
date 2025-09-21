@@ -62,7 +62,7 @@
 "models.infotip.vadMessage" = "Detect speech segments and filter out silence to improve the accuracy of local models.";
 "enhancement.tip.enableMessage" = "AI enhancement lets you pass the transcribed audio through LLMs to post-process with prompts for emails, summaries, writing, and more.";
 "enhancement.maxAttempts" = "Max attempts: %d";
-"API Endpoint URL (e.g., https://api.example.com/v1/chat/completions)" = "API Endpoint URL (e.g., https://api.example.com/v1/chat/completions)";
+"API Endpoint URL (e.g., https://api.example.com/v1/chat/completions)" = "API Endpoint URL (e.g., https://proxy.domain.ru/v1/chat/completions)";
 "API Key" = "API Key";
 "API Key Configuration" = "API Key Configuration";
 "API key verified successfully!" = "API key verified successfully!";
@@ -319,7 +319,7 @@
 "Manage Models" = "Manage Models";
 "Mini Recorder" = "Mini Recorder";
 "Model" = "Model";
-"Model Name (e.g., gpt-4o-mini, claude-3-5-sonnet-20240620)" = "Model Name (e.g., gpt-4o-mini, claude-3-5-sonnet-20240620)";
+"Model Name (e.g., gpt-4o-mini, claude-3-5-sonnet-20240620)" = "Model Name (e.g., deepseek-reasoner, deepseek-chat, qwen-turbo)";
 "Multilingual Model" = "Multilingual Model";
 "Mute system audio during recording" = "Mute system audio during recording";
 "Name your power mode" = "Name your power mode";
