@@ -405,6 +405,11 @@
 "Start Transcription" = "Start Transcription";
 "Start recording to see your metrics" = "Start recording to see your metrics";
 "Start with a Predefined Template" = "Start with a Predefined Template";
+"Default system prompt for improving clarity and accuracy of transcriptions" = "Default system prompt for improving clarity and accuracy of transcriptions";
+"Casual chat-style formatting" = "Casual chat-style formatting";
+"Template for converting casual messages into professional email format" = "Template for converting casual messages into professional email format";
+"For Vibe coders and AI chat. Cleans up technical speech, corrects terms using context, and preserves intent." = "For Vibe coders and AI chat. Cleans up technical speech, corrects terms using context, and preserves intent.";
+"Rewrites transcriptions with enhanced clarity, improved sentence structure, and rhythmic flow while preserving original meaning." = "Rewrites transcriptions with enhanced clarity, improved sentence structure, and rhythmic flow while preserving original meaning.";
 "Successfully deleted (cleanupResult.deletedCount) audio files." = "Successfully deleted (cleanupResult.deletedCount) audio files.";
 "Successfully deleted (cleanupResult.deletedCount) audio files. Failed to delete (cleanupResult.errorCount) files." = "Successfully deleted (cleanupResult.deletedCount) audio files. Failed to delete (cleanupResult.errorCount) files.";
 "Supported formats: WAV, MP3, M4A, AIFF, MP4, MOV" = "Supported formats: WAV, MP3, M4A, AIFF, MP4, MOV";
