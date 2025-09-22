@@ -1,10 +1,21 @@
 import Foundation
+import Darwin
 #if canImport(whisper)
 import whisper
 #else
 #error("Unable to import whisper module. Please check your project configuration.")
 #endif
 import os
+
+
+struct WhisperSegment: Identifiable {
+    let id = UUID()
+    let index: Int
+    let text: String
+    let start: TimeInterval
+    let end: TimeInterval
+    let speaker: String?
+}
 
 
 // Meet Whisper C++ constraint: Don't access from more than one thread at a time.
@@ -15,6 +26,25 @@ actor WhisperContext {
     private var promptCString: [CChar]?
     private var vadModelPath: String?
     private let logger = Logger(subsystem: "com.prakashjoshipax.voiceink", category: "WhisperContext")
+
+    private typealias WhisperSegmentSpeakerFunction = @convention(c) (OpaquePointer?, Int32) -> Int32
+
+    private static let segmentSpeakerFunction: WhisperSegmentSpeakerFunction? = {
+        guard let symbol = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "whisper_full_get_segment_speaker") else {
+            return nil
+        }
+        return unsafeBitCast(symbol, to: WhisperSegmentSpeakerFunction.self)
+    }()
+
+    private static var shouldAttemptSpeakerLabels: Bool {
+        let modeRawValue = UserDefaults.standard.string(forKey: SpeakerDiarizationMode.userDefaultsKey)
+        return modeRawValue != SpeakerDiarizationMode.off.rawValue
+    }
+
+    private static var shouldEnableTinyDiarization: Bool {
+        let modeRawValue = UserDefaults.standard.string(forKey: SpeakerDiarizationMode.userDefaultsKey)
+        return modeRawValue == SpeakerDiarizationMode.whisperLocal.rawValue
+    }
 
     private init() {}
 
@@ -66,9 +96,10 @@ actor WhisperContext {
         params.no_context = true
         params.single_segment = false
         params.temperature = 0.2
+        params.tdrz_enable = WhisperContext.shouldEnableTinyDiarization
 
         whisper_reset_timings(context)
-        
+
         // Configure VAD if enabled by user and model is available
         let isVADEnabled = UserDefaults.standard.object(forKey: "IsVADEnabled") as? Bool ?? true
         if isVADEnabled, let vadModelPath = self.vadModelPath {
@@ -110,10 +141,60 @@ actor WhisperContext {
         return transcription
     }
 
+    func getSegments() -> [WhisperSegment] {
+        guard let context = context else { return [] }
+        let segmentCount = Int(whisper_full_n_segments(context))
+        guard segmentCount > 0 else { return [] }
+
+        let shouldLabelSpeakers = WhisperContext.shouldAttemptSpeakerLabels
+        var collectedSegments: [WhisperSegment] = []
+        collectedSegments.reserveCapacity(segmentCount)
+
+        var fallbackSpeakerIndex = 0
+        var fallbackSpeakerLabel: String? = shouldLabelSpeakers ? "S0" : nil
+
+        for index in 0..<segmentCount {
+            let text = String(cString: whisper_full_get_segment_text(context, Int32(index)))
+            let startTime = TimeInterval(whisper_full_get_segment_t0(context, Int32(index))) / 100.0
+            let endTime = TimeInterval(whisper_full_get_segment_t1(context, Int32(index))) / 100.0
+
+            var speakerLabel: String? = nil
+
+            if shouldLabelSpeakers, let speakerFunction = WhisperContext.segmentSpeakerFunction {
+                let speakerValue = speakerFunction(context, Int32(index))
+                if speakerValue >= 0 {
+                    speakerLabel = "S\(speakerValue)"
+                }
+            }
+
+            if speakerLabel == nil, shouldLabelSpeakers {
+                if index == 0 {
+                    fallbackSpeakerIndex = 0
+                    fallbackSpeakerLabel = "S0"
+                } else if whisper_full_get_segment_speaker_turn_next(context, Int32(index - 1)) {
+                    fallbackSpeakerIndex += 1
+                    fallbackSpeakerLabel = "S\(fallbackSpeakerIndex)"
+                }
+                speakerLabel = fallbackSpeakerLabel
+            }
+
+            let segment = WhisperSegment(
+                index: index,
+                text: text,
+                start: startTime,
+                end: endTime,
+                speaker: speakerLabel
+            )
+            collectedSegments.append(segment)
+        }
+
+        return collectedSegments
+    }
+
     static func createContext(path: String) async throws -> WhisperContext {
         let whisperContext = WhisperContext()
         try await whisperContext.initializeModel(path: path)
-        
+
         // Load VAD model from bundle resources
         let vadModelPath = await VADModelManager.shared.getModelPath()
         await whisperContext.setVADModelPath(vadModelPath)

@@ -13,6 +13,7 @@ class AudioTranscriptionService: ObservableObject {
     private let enhancementService: AIEnhancementService?
     private let whisperState: WhisperState
     private let logger = Logger(subsystem: "com.prakashjoshipax.voiceink", category: "AudioTranscriptionService")
+    private let speakerDiarizationService = SpeakerDiarizationService.shared
     
     // Transcription services
     private let localTranscriptionService: LocalTranscriptionService
@@ -48,15 +49,21 @@ class AudioTranscriptionService: ObservableObject {
             let transcriptionStart = Date()
             var text: String
             
+            let diarizationSegments: [WhisperSegment]
+
             switch model.provider {
             case .local:
                 text = try await localTranscriptionService.transcribe(audioURL: url, model: model)
+                diarizationSegments = localTranscriptionService.consumeLastSegments()
             case .parakeet:
                 text = try await parakeetTranscriptionService.transcribe(audioURL: url, model: model)
+                diarizationSegments = []
             case .nativeApple:
                 text = try await nativeAppleTranscriptionService.transcribe(audioURL: url, model: model)
+                diarizationSegments = []
             default: // Cloud models
                 text = try await cloudTranscriptionService.transcribe(audioURL: url, model: model)
+                diarizationSegments = []
             }
             
             let transcriptionDuration = Date().timeIntervalSince(transcriptionStart)
@@ -122,7 +129,15 @@ class AudioTranscriptionService: ObservableObject {
                     } catch {
                         logger.error("❌ Failed to save transcription: \(error.localizedDescription)")
                     }
-                    
+
+                    await speakerDiarizationService.attachSegments(
+                        to: newTranscription,
+                        text: text,
+                        audioURL: permanentURL,
+                        in: modelContext,
+                        localSegments: diarizationSegments
+                    )
+
                     await MainActor.run {
                         isTranscribing = false
                     }
@@ -150,11 +165,19 @@ class AudioTranscriptionService: ObservableObject {
                     } catch {
                         logger.error("❌ Failed to save transcription: \(error.localizedDescription)")
                     }
-                    
+
+                    await speakerDiarizationService.attachSegments(
+                        to: newTranscription,
+                        text: text,
+                        audioURL: permanentURL,
+                        in: modelContext,
+                        localSegments: diarizationSegments
+                    )
+
                     await MainActor.run {
                         isTranscribing = false
                     }
-                    
+
                     return newTranscription
                 }
             } else {
@@ -172,11 +195,19 @@ class AudioTranscriptionService: ObservableObject {
                 } catch {
                     logger.error("❌ Failed to save transcription: \(error.localizedDescription)")
                 }
-                
+
+                await speakerDiarizationService.attachSegments(
+                    to: newTranscription,
+                    text: text,
+                    audioURL: permanentURL,
+                    in: modelContext,
+                    localSegments: diarizationSegments
+                )
+
                 await MainActor.run {
                     isTranscribing = false
                 }
-                
+
                 return newTranscription
             }
         } catch {

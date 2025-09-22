@@ -52,7 +52,8 @@ class WhisperState: NSObject, ObservableObject {
     
     // Prompt detection service for trigger word handling
     private let promptDetectionService = PromptDetectionService()
-    
+    private let speakerDiarizationService = SpeakerDiarizationService.shared
+
     let modelContext: ModelContext
     
     // Transcription Services
@@ -270,6 +271,13 @@ class WhisperState: NSObject, ObservableObject {
             var text = try await transcriptionService.transcribe(audioURL: url, model: model)
             text = WhisperHallucinationFilter.filter(text)
             let transcriptionDuration = Date().timeIntervalSince(transcriptionStart)
+
+            let diarizationSegments: [WhisperSegment]
+            if model.provider == .local {
+                diarizationSegments = localTranscriptionService.consumeLastSegments()
+            } else {
+                diarizationSegments = []
+            }
             
             if await checkCancellationAndCleanup() { return }
             
@@ -319,6 +327,12 @@ class WhisperState: NSObject, ObservableObject {
                     modelContext.insert(newTranscription)
                     try? modelContext.save()
                     NotificationCenter.default.post(name: .transcriptionCreated, object: newTranscription)
+                    await attachSpeakerSegments(
+                        for: newTranscription,
+                        using: diarizationSegments,
+                        text: originalText,
+                        audioURL: url
+                    )
                     text = enhancedText
                 } catch {
                     if error is CancellationError {
@@ -340,7 +354,13 @@ class WhisperState: NSObject, ObservableObject {
                     modelContext.insert(newTranscription)
                     try? modelContext.save()
                     NotificationCenter.default.post(name: .transcriptionCreated, object: newTranscription)
-                    
+                    await attachSpeakerSegments(
+                        for: newTranscription,
+                        using: diarizationSegments,
+                        text: originalText,
+                        audioURL: url
+                    )
+
                     await MainActor.run {
                         NotificationManager.shared.showNotification(
                             title: String(localized: "notifications.aiEnhancementFailed"),
@@ -360,6 +380,12 @@ class WhisperState: NSObject, ObservableObject {
                 modelContext.insert(newTranscription)
                 try? modelContext.save()
                 NotificationCenter.default.post(name: .transcriptionCreated, object: newTranscription)
+                await attachSpeakerSegments(
+                    for: newTranscription,
+                    using: diarizationSegments,
+                    text: originalText,
+                    audioURL: url
+                )
             }
             
             let shouldAddSpace = UserDefaults.standard.object(forKey: "AppendTrailingSpace") as? Bool ?? true
@@ -433,7 +459,7 @@ class WhisperState: NSObject, ObservableObject {
     func getEnhancementService() -> AIEnhancementService? {
         return enhancementService
     }
-    
+
     private func checkCancellationAndCleanup() async -> Bool {
         if shouldCancelRecording {
             await dismissMiniRecorder()
@@ -444,5 +470,20 @@ class WhisperState: NSObject, ObservableObject {
     
     private func cleanupAndDismiss() async {
         await dismissMiniRecorder()
+    }
+
+    private func attachSpeakerSegments(
+        for transcription: Transcription,
+        using segments: [WhisperSegment],
+        text: String,
+        audioURL: URL
+    ) async {
+        await speakerDiarizationService.attachSegments(
+            to: transcription,
+            text: text,
+            audioURL: audioURL,
+            in: modelContext,
+            localSegments: segments
+        )
     }
 }

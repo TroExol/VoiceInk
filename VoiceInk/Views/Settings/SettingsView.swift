@@ -14,6 +14,7 @@ struct SettingsView: View {
     @StateObject private var deviceManager = AudioDeviceManager.shared
     @ObservedObject private var mediaController = MediaController.shared
     @ObservedObject private var playbackController = PlaybackController.shared
+    @ObservedObject private var speakerDiarizationService = SpeakerDiarizationService.shared
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = true
     @AppStorage("autoUpdateCheck") private var autoUpdateCheck = true
     @State private var showResetOnboardingAlert = false
@@ -301,6 +302,33 @@ struct SettingsView: View {
                     }
                 }
 
+                SettingsSection(
+                    icon: "person.2.wave.2.fill",
+                    title: "Speaker Diarization",
+                    subtitle: "Choose how speaker labels are generated"
+                ) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Picker("Mode", selection: $speakerDiarizationService.selectedMode) {
+                            ForEach(speakerDiarizationService.availableModes) { mode in
+                                Text(mode.displayName).tag(mode)
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.segmented)
+                        .frame(maxWidth: 420)
+
+                        Text(speakerDiarizationService.selectedMode.details)
+                            .settingsDescription()
+
+                        if let fallbackReason = speakerDiarizationService.lastFallbackReason {
+                            Text(diarizationFallbackMessage(for: fallbackReason))
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.orange)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+
                 ExperimentalFeaturesSection()
 
                 SettingsSection(
@@ -449,7 +477,18 @@ struct SettingsView: View {
             Text("Are you sure you want to reset the onboarding? You'll see the introduction screens again the next time you launch the app.")
         }
     }
-    
+
+    private func diarizationFallbackMessage(for reason: String) -> String {
+        switch reason {
+        case "pyannote":
+            return String(localized: "speakerDiarization.fallback.pyannote")
+        case "deepgram":
+            return String(localized: "speakerDiarization.fallback.deepgram")
+        default:
+            return String(localized: "speakerDiarization.fallback.local")
+        }
+    }
+
     @ViewBuilder
     private func hotkeyView(
         title: LocalizedStringKey,
