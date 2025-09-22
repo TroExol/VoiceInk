@@ -271,9 +271,9 @@ struct AudioInputSettingsView: View {
             Text("settings.systemAudio.formatTitle")
                 .font(.headline)
 
-            Picker("settings.systemAudio.formatTitle", selection: Binding(
+            Picker("settings.systemAudio.formatTitle", selection: Binding<SystemAudioCaptureConfiguration.OutputFormat>(
                 get: { systemOutputFormat },
-                set: { systemOutputFormat = $0 }
+                set: { newValue in systemOutputFormatRaw = newValue.rawValue }
             )) {
                 ForEach(SystemAudioCaptureConfiguration.OutputFormat.allCases) { format in
                     Text(format.localizedName).tag(format)
