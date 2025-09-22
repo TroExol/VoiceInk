@@ -2,8 +2,16 @@ import SwiftUI
 
 struct AudioInputSettingsView: View {
     @ObservedObject var audioDeviceManager = AudioDeviceManager.shared
+    @ObservedObject private var systemCaptureService = SystemAudioCaptureService.shared
+    @ObservedObject private var mediaController = MediaController.shared
     @Environment(\.colorScheme) private var colorScheme
-    
+    @AppStorage(UserDefaults.Keys.systemAudioCaptureEnabled) private var isSystemAudioCaptureEnabled: Bool = UserDefaults.standard.isSystemAudioCaptureEnabled
+    @AppStorage(UserDefaults.Keys.systemAudioLoopbackUID) private var selectedLoopbackUID: String = UserDefaults.standard.systemAudioLoopbackDeviceUID ?? ""
+    @AppStorage(UserDefaults.Keys.systemAudioSystemLevel) private var systemAudioLevel: Double = UserDefaults.standard.systemAudioSystemLevel
+    @AppStorage(UserDefaults.Keys.systemAudioMicrophoneLevel) private var microphoneAudioLevel: Double = UserDefaults.standard.systemAudioMicrophoneLevel
+    @AppStorage(UserDefaults.Keys.systemAudioOutputFormat) private var systemOutputFormatRaw: String = UserDefaults.standard.systemAudioOutputFormat
+    @AppStorage(UserDefaults.Keys.systemAudioChannelCount) private var systemChannelCount: Int = UserDefaults.standard.systemAudioChannelCount
+
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
@@ -12,17 +20,38 @@ struct AudioInputSettingsView: View {
             }
         }
         .background(Color(NSColor.controlBackgroundColor))
+        .onAppear {
+            systemCaptureService.refreshAvailableDevices()
+        }
+        .onChange(of: systemAudioLevel) { _, newValue in
+            systemCaptureService.updateLevels(systemLevel: Float(newValue), microphoneLevel: Float(microphoneAudioLevel))
+        }
+        .onChange(of: microphoneAudioLevel) { _, newValue in
+            systemCaptureService.updateLevels(systemLevel: Float(systemAudioLevel), microphoneLevel: Float(newValue))
+        }
+        .onChange(of: systemCaptureService.availableLoopbackDevices) { _, devices in
+            if !devices.contains(where: { $0.uid == selectedLoopbackUID }) {
+                selectedLoopbackUID = ""
+            }
+        }
+    }
+
+    private var systemOutputFormat: SystemAudioCaptureConfiguration.OutputFormat {
+        get { SystemAudioCaptureConfiguration.OutputFormat(rawValue: systemOutputFormatRaw) ?? .stereo }
+        set { systemOutputFormatRaw = newValue.rawValue }
     }
     
     private var mainContent: some View {
         VStack(spacing: 40) {
             inputModeSection
-            
+
             if audioDeviceManager.inputMode == .custom {
                 customDeviceSection
             } else if audioDeviceManager.inputMode == .prioritized {
                 prioritizedDevicesSection
             }
+
+            systemAudioCaptureSection
         }
         .padding(.horizontal, 32)
         .padding(.vertical, 40)
@@ -111,6 +140,185 @@ struct AudioInputSettingsView: View {
                 Divider().padding(.vertical, 8)
                 availableDevicesContent
             }
+        }
+    }
+
+    private var systemAudioCaptureSection: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("settings.systemAudio.title")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                Text("settings.systemAudio.description")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            Toggle(isOn: $isSystemAudioCaptureEnabled) {
+                Text("settings.systemAudio.toggle")
+            }
+            .toggleStyle(.switch)
+
+            if isSystemAudioCaptureEnabled {
+                Divider()
+
+                deviceSelectionSection
+                levelsSection
+                volumeSection
+                formatSection
+                instructionsSection
+            }
+        }
+        .padding(24)
+        .background(CardBackground(isSelected: false))
+        .animation(.default, value: isSystemAudioCaptureEnabled)
+    }
+
+    private var deviceSelectionSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("settings.systemAudio.device")
+                    .font(.headline)
+                Spacer()
+                Button(action: { systemCaptureService.refreshAvailableDevices() }) {
+                    Label("settings.systemAudio.refresh", systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.borderless)
+                .disabled(systemCaptureService.isCapturing)
+            }
+
+            Picker("settings.systemAudio.devicePlaceholder", selection: $selectedLoopbackUID) {
+                Text("settings.systemAudio.deviceNone").tag("")
+                ForEach(systemCaptureService.availableLoopbackDevices) { device in
+                    let label = "\(device.name) — \(device.channelCount)ch"
+                    Text(label).tag(device.uid)
+                }
+            }
+            .pickerStyle(.menu)
+            .frame(maxWidth: 320)
+            .disabled(systemCaptureService.availableLoopbackDevices.isEmpty || systemCaptureService.isCapturing)
+
+            if systemCaptureService.availableLoopbackDevices.isEmpty {
+                Text("settings.systemAudio.noDevice")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("settings.systemAudio.deviceHint")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            if systemCaptureService.isCapturing {
+                Text("settings.systemAudio.deviceLocked")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var levelsSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("settings.systemAudio.balanceTitle")
+                .font(.headline)
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("settings.systemAudio.systemLevel")
+                    Spacer()
+                    Text(String(format: "%.0f%%", systemAudioLevel * 100))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                Slider(value: $systemAudioLevel, in: 0...1, step: 0.05)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("settings.systemAudio.microphoneLevel")
+                    Spacer()
+                    Text(String(format: "%.0f%%", microphoneAudioLevel * 100))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                Slider(value: $microphoneAudioLevel, in: 0...1, step: 0.05)
+            }
+
+            Text("settings.systemAudio.balanceHelp")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var volumeSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("settings.systemAudio.volumeDuckTitle")
+                    .font(.headline)
+                Spacer()
+                Text(String(format: "%.0f%%", mediaController.systemCaptureVolume))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            Slider(value: $mediaController.systemCaptureVolume, in: 0...100, step: 1)
+            Text("settings.systemAudio.volumeDuckHelp")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var formatSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("settings.systemAudio.formatTitle")
+                .font(.headline)
+
+            Picker("settings.systemAudio.formatTitle", selection: Binding(
+                get: { systemOutputFormat },
+                set: { systemOutputFormat = $0 }
+            )) {
+                ForEach(SystemAudioCaptureConfiguration.OutputFormat.allCases) { format in
+                    Text(format.localizedName).tag(format)
+                }
+            }
+            .pickerStyle(.segmented)
+            .disabled(systemCaptureService.isCapturing)
+
+            Stepper(value: $systemChannelCount, in: 1...16) {
+                Text(String(format: String(localized: "settings.systemAudio.channelCount"), systemChannelCount))
+            }
+            .disabled(systemCaptureService.isCapturing)
+
+            Text("settings.systemAudio.formatHelp")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var instructionsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("settings.systemAudio.instructionsTitle")
+                .font(.headline)
+
+            Text("settings.systemAudio.instructionsDescription")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Label("settings.systemAudio.stepInstall", systemImage: "1.circle")
+                HStack(spacing: 16) {
+                    Link("Loopback", destination: URL(string: "https://rogueamoeba.com/loopback/")!)
+                    Link("BlackHole", destination: URL(string: "https://existential.audio/blackhole/")!)
+                }
+                .font(.footnote)
+
+                Label("settings.systemAudio.stepCreateDevice", systemImage: "2.circle")
+                Label("settings.systemAudio.stepRoute", systemImage: "3.circle")
+                Label("settings.systemAudio.stepSelect", systemImage: "4.circle")
+            }
+            .font(.footnote)
+
+            Text("settings.systemAudio.instructionsFooter")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
         }
     }
     

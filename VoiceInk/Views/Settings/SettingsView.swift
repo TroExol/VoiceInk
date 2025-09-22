@@ -284,10 +284,10 @@ struct SettingsView: View {
                         .toggleStyle(.switch)
 
                         Toggle(isOn: $mediaController.isSystemMuteEnabled) {
-                            Text("Mute system audio during recording")
+                            Text("settings.systemAudio.managementToggle")
                         }
                         .toggleStyle(.switch)
-                        .localizedHelp("Automatically mute system audio when recording starts and restore when recording stops")
+                        .localizedHelp(String(localized: "settings.systemAudio.managementHelp"))
 
                         Toggle(isOn: Binding(
                             get: { UserDefaults.standard.bool(forKey: "preserveTranscriptInClipboard") },
