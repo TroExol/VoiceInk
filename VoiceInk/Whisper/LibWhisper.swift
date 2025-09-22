@@ -25,6 +25,7 @@ actor WhisperContext {
     private var languageCString: [CChar]?
     private var prompt: String?
     private var promptCString: [CChar]?
+    private var vadModelPathCString: [CChar]?
     private var vadModelPath: String?
     private let logger = Logger(subsystem: "com.prakashjoshipax.voiceink", category: "WhisperContext")
 
@@ -87,8 +88,15 @@ actor WhisperContext {
         let isVADEnabled = UserDefaults.standard.object(forKey: "IsVADEnabled") as? Bool ?? true
         if isVADEnabled, let vadModelPath = self.vadModelPath {
             params.vad = true
-            params.vad_model_path = (vadModelPath as NSString).utf8String
-            
+            vadModelPathCString = Array(vadModelPath.utf8CString)
+            if let vadModelPathCString {
+                vadModelPathCString.withUnsafeBufferPointer { buffer in
+                    if let baseAddress = buffer.baseAddress {
+                        params.vad_model_path = baseAddress
+                    }
+                }
+            }
+
             var vadParams = whisper_vad_default_params()
             vadParams.threshold = 0.50
             vadParams.min_speech_duration_ms = 250
@@ -99,6 +107,7 @@ actor WhisperContext {
             params.vad_params = vadParams
         } else {
             params.vad = false
+            vadModelPathCString = nil
         }
         
         var success = true
