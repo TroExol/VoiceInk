@@ -36,15 +36,15 @@ class AudioTranscriptionManager: ObservableObject {
             case .idle:
                 return ""
             case .loading:
-                return "Loading transcription model..."
+                return String(localized: "Loading transcription model...")
             case .processingAudio:
-                return "Processing audio file for transcription..."
+                return String(localized: "Processing audio file for transcription...")
             case .transcribing:
-                return "Transcribing audio..."
+                return String(localized: "Transcribing audio...")
             case .enhancing:
-                return "Enhancing transcription with AI..."
+                return String(localized: "Enhancing transcription with AI...")
             case .completed:
-                return "Transcription completed!"
+                return String(localized: "Transcription completed!")
             }
         }
     }

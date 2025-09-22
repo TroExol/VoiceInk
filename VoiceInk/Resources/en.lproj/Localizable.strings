@@ -584,5 +584,10 @@
 "support.email.body" = "\n------------------------\n✨ **SCREEN RECORDING HIGHLY RECOMMENDED** ✨\n▶️ Create a quick screen recording showing the issue!\n▶️ It helps me understand and fix the problem much faster.\n\n📝 ISSUE DETAILS:\n- What steps did you take before the issue occurred?\n- What did you expect to happen?\n- What actually happened instead?\n\n\n## 📋 COMMON ISSUES:\nCheck out our Common Issues page before sending an email: https://tryvoiceink.com/common-issues\n------------------------\n\nSystem Information:\n%@\n\n";
 "support.email.subject" = "VoiceInk Support Request";
 "support.email.systemInfo" = "App Version: %@\nmacOS Version: %@\nDevice: %@\nCPU: %@\nMemory: %@";
+"Loading transcription model..." = "Loading transcription model...";
+"Processing audio file for transcription..." = "Processing audio file for transcription...";
+"Transcribing audio..." = "Transcribing audio...";
+"Enhancing transcription with AI..." = "Enhancing transcription with AI...";
+"Transcription completed!" = "Transcription completed!";
 "transcription.enhancementFailedFormat" = "Enhancement failed: %@";
 "transcription.failedFormat" = "Transcription Failed: %@";
