@@ -89,18 +89,23 @@ actor WhisperContext {
         if isVADEnabled, let vadModelPath = self.vadModelPath {
             params.vad = true
             vadModelPathCString = Array(vadModelPath.utf8CString)
-            if let pointer = vadModelPathCString?.withUnsafeBufferPointer({ $0.baseAddress }) {
+            if let pointer: UnsafePointer<CChar> = vadModelPathCString?.withUnsafeBufferPointer({ $0.baseAddress }) {
                 params.vad_model_path = pointer
-            }
 
-            var vadParams = whisper_vad_default_params()
-            vadParams.threshold = 0.50
-            vadParams.min_speech_duration_ms = 250
-            vadParams.min_silence_duration_ms = 100
-            vadParams.max_speech_duration_s = Float.greatestFiniteMagnitude
-            vadParams.speech_pad_ms = 30
-            vadParams.samples_overlap = 0.1
-            params.vad_params = vadParams
+                var vadParams = whisper_vad_default_params()
+                vadParams.threshold = 0.50
+                vadParams.min_speech_duration_ms = 250
+                vadParams.min_silence_duration_ms = 100
+                vadParams.max_speech_duration_s = Float.greatestFiniteMagnitude
+                vadParams.speech_pad_ms = 30
+                vadParams.samples_overlap = 0.1
+                params.vad_params = vadParams
+            } else {
+                logger.error("Unable to prepare VAD model pointer for path \(vadModelPath). Disabling VAD for this session.")
+                params.vad = false
+                params.vad_model_path = nil
+                vadModelPathCString = nil
+            }
         } else {
             params.vad = false
             vadModelPathCString = nil

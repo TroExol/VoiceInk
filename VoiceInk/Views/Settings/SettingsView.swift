@@ -594,15 +594,23 @@ struct SettingsView: View {
 
 struct SettingsSection<Content: View>: View {
     let icon: String
-    let title: LocalizedStringKey
-    let subtitle: LocalizedStringKey
+    let title: Text
+    let subtitle: Text
     let content: Content
     var showWarning: Bool = false
-    
+
     init(icon: String, title: LocalizedStringKey, subtitle: LocalizedStringKey, showWarning: Bool = false, @ViewBuilder content: () -> Content) {
         self.icon = icon
-        self.title = title
-        self.subtitle = subtitle
+        self.title = Text(title)
+        self.subtitle = Text(subtitle)
+        self.showWarning = showWarning
+        self.content = content()
+    }
+
+    init(icon: String, title: String, subtitle: String, showWarning: Bool = false, @ViewBuilder content: () -> Content) {
+        self.icon = icon
+        self.title = Text(title)
+        self.subtitle = Text(subtitle)
         self.showWarning = showWarning
         self.content = content()
     }
@@ -616,9 +624,9 @@ struct SettingsSection<Content: View>: View {
                     .frame(width: 24, height: 24)
                 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
+                    title
                         .font(.headline)
-                    Text(subtitle)
+                    subtitle
                         .font(.subheadline)
                         .foregroundColor(showWarning ? .red : .secondary)
                 }
