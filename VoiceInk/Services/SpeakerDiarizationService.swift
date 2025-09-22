@@ -75,7 +75,7 @@ final class SpeakerDiarizationService {
     }
 
     private func generateSegments(for transcription: Transcription, metadata: [WhisperSegmentMetadata]?, baseText: String, audioDuration: TimeInterval) -> [TranscriptionSegment] {
-        switch selectedModel {
+        switch self.selectedModel {
         case .none:
             return fallbackSegments(for: transcription, baseText: baseText, audioDuration: audioDuration)
         case .whisper:
@@ -99,7 +99,8 @@ final class SpeakerDiarizationService {
                 return diarizedSegment
             }
         case .pyannote, .deepgram:
-            logger.notice("External diarization model \(selectedModel.rawValue) is not configured. Falling back to default behaviour.")
+            let model = self.selectedModel
+            logger.notice("External diarization model \(model.rawValue) is not configured. Falling back to default behaviour.")
             return fallbackSegments(for: transcription, baseText: baseText, audioDuration: audioDuration)
         }
     }
