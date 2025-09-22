@@ -51,18 +51,22 @@ actor WhisperContext {
         let selectedLanguage = UserDefaults.standard.string(forKey: "SelectedLanguage") ?? "auto"
         if selectedLanguage != "auto" {
             languageCString = Array(selectedLanguage.utf8CString)
-            params.language = languageCString?.withUnsafeBufferPointer { ptr in
-                ptr.baseAddress
+            params.language = languageCString.flatMap { cString in
+                cString.withUnsafeBufferPointer { buffer in
+                    buffer.baseAddress
+                }
             }
         } else {
             languageCString = nil
             params.language = nil
         }
-        
+
         if prompt != nil {
             promptCString = Array(prompt!.utf8CString)
-            params.initial_prompt = promptCString?.withUnsafeBufferPointer { ptr in
-                ptr.baseAddress
+            params.initial_prompt = promptCString.flatMap { cString in
+                cString.withUnsafeBufferPointer { buffer in
+                    buffer.baseAddress
+                }
             }
         } else {
             promptCString = nil
@@ -89,7 +93,11 @@ actor WhisperContext {
         if isVADEnabled, let vadModelPath = self.vadModelPath {
             params.vad = true
             vadModelPathCString = Array(vadModelPath.utf8CString)
-            if let pointer: UnsafePointer<CChar> = vadModelPathCString?.withUnsafeBufferPointer({ $0.baseAddress }) {
+            if let pointer = vadModelPathCString.flatMap({ cString in
+                cString.withUnsafeBufferPointer { buffer in
+                    buffer.baseAddress
+                }
+            }) {
                 params.vad_model_path = pointer
 
                 var vadParams = whisper_vad_default_params()
