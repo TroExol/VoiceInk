@@ -20,7 +20,7 @@ class MediaController: ObservableObject {
     private init() {
         // Set default if not already set
         if !UserDefaults.standard.contains(key: "isSystemMuteEnabled") {
-            UserDefaults.standard.set(true, forKey: "isSystemMuteEnabled")
+            UserDefaults.standard.set(false, forKey: "isSystemMuteEnabled")
         }
     }
     
