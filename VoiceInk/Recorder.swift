@@ -1,6 +1,7 @@
 import Foundation
 import AVFoundation
 import CoreAudio
+import Combine
 import os
 
 @MainActor
@@ -12,6 +13,9 @@ class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     private var isReconfiguring = false
     private let mediaController = MediaController.shared
     private let playbackController = PlaybackController.shared
+    private let systemAudioService = SystemAudioCaptureService.shared
+    private var systemAudioMeterCancellable: AnyCancellable?
+    private var isUsingSystemAudioCapture = false
     @Published var audioMeter = AudioMeter(averagePower: 0, peakPower: 0)
     private var audioLevelCheckTask: Task<Void, Never>?
     private var audioMeterUpdateTask: Task<Void, Never>?
@@ -100,33 +104,24 @@ class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
             AVLinearPCMIsBigEndianKey: false,
             AVLinearPCMIsNonInterleaved: false
         ]
-        
+
+        audioLevelCheckTask?.cancel()
+        audioMeterUpdateTask?.cancel()
+        systemAudioMeterCancellable?.cancel()
+
         do {
-            recorder = try AVAudioRecorder(url: url, settings: recordSettings)
-            recorder?.delegate = self
-            recorder?.isMeteringEnabled = true
-            
-            if recorder?.record() == false {
-                logger.error("❌ Could not start recording")
-                throw RecorderError.couldNotStartRecording
+            if systemAudioService.isCaptureEnabled {
+                try startSystemAudioRecording(to: url)
+            } else {
+                try startMicrophoneOnlyRecording(to: url, settings: recordSettings)
             }
-            
+
             Task { [weak self] in
                 guard let self = self else { return }
                 await self.playbackController.pauseMedia()
                 _ = await self.mediaController.muteSystemAudio()
             }
-            
-            audioLevelCheckTask?.cancel()
-            audioMeterUpdateTask?.cancel()
-            
-            audioMeterUpdateTask = Task {
-                while recorder != nil && !Task.isCancelled {
-                    updateAudioMeter()
-                    try? await Task.sleep(nanoseconds: 33_000_000)
-                }
-            }
-            
+
             audioLevelCheckTask = Task {
                 let notificationChecks: [TimeInterval] = [5.0, 12.0]
 
@@ -147,7 +142,7 @@ class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
                     }
                 }
             }
-            
+
         } catch {
             logger.error("Failed to create audio recorder: \(error.localizedDescription)")
             stopRecording()
@@ -158,10 +153,18 @@ class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     func stopRecording() {
         audioLevelCheckTask?.cancel()
         audioMeterUpdateTask?.cancel()
+        systemAudioMeterCancellable?.cancel()
+        systemAudioMeterCancellable = nil
+
+        if isUsingSystemAudioCapture {
+            systemAudioService.stopCapture()
+            isUsingSystemAudioCapture = false
+        }
+
         recorder?.stop()
         recorder = nil
         audioMeter = AudioMeter(averagePower: 0, peakPower: 0)
-        
+
         Task {
             await mediaController.unmuteSystemAudio()
             try? await Task.sleep(nanoseconds: 100_000_000)
@@ -170,14 +173,59 @@ class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
         deviceManager.isRecordingActive = false
     }
 
+    private func startSystemAudioRecording(to url: URL) throws {
+        try systemAudioService.startCapture(to: url)
+        isUsingSystemAudioCapture = true
+        recorder = nil
+
+        systemAudioMeterCancellable = systemAudioService.$audioMeter
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] meter in
+                guard let self else { return }
+                self.audioMeter = meter
+                if !self.hasDetectedAudioInCurrentSession && meter.averagePower > 0.01 {
+                    self.hasDetectedAudioInCurrentSession = true
+                }
+            }
+    }
+
+    private func startMicrophoneOnlyRecording(to url: URL, settings: [String: Any]) throws {
+        let audioRecorder = try AVAudioRecorder(url: url, settings: settings)
+        audioRecorder.delegate = self
+        audioRecorder.isMeteringEnabled = true
+
+        guard audioRecorder.record() else {
+            logger.error("❌ Could not start recording")
+            throw RecorderError.couldNotStartRecording
+        }
+
+        recorder = audioRecorder
+        isUsingSystemAudioCapture = false
+
+        audioMeterUpdateTask = Task { [weak self] in
+            while let recorder = self?.recorder, !Task.isCancelled {
+                recorder.updateMeters()
+
+                let averagePower = recorder.averagePower(forChannel: 0)
+                let peakPower = recorder.peakPower(forChannel: 0)
+
+                self?.updateAudioMeter(averagePower: averagePower, peakPower: peakPower)
+                try? await Task.sleep(nanoseconds: 33_000_000)
+            }
+        }
+    }
+
     private func updateAudioMeter() {
         guard let recorder = recorder else { return }
         recorder.updateMeters()
-        
+
         let averagePower = recorder.averagePower(forChannel: 0)
         let peakPower = recorder.peakPower(forChannel: 0)
-        
-        let minVisibleDb: Float = -60.0 
+        updateAudioMeter(averagePower: averagePower, peakPower: peakPower)
+    }
+
+    private func updateAudioMeter(averagePower: Float, peakPower: Float) {
+        let minVisibleDb: Float = -60.0
         let maxVisibleDb: Float = 0.0
 
         let normalizedAverage: Float
@@ -188,7 +236,7 @@ class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
         } else {
             normalizedAverage = (averagePower - minVisibleDb) / (maxVisibleDb - minVisibleDb)
         }
-        
+
         let normalizedPeak: Float
         if peakPower < minVisibleDb {
             normalizedPeak = 0.0
@@ -197,13 +245,13 @@ class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
         } else {
             normalizedPeak = (peakPower - minVisibleDb) / (maxVisibleDb - minVisibleDb)
         }
-        
-        let newAudioMeter = AudioMeter(averagePower: Double(normalizedAverage), peakPower: Double(normalizedPeak))
 
-        if !hasDetectedAudioInCurrentSession && newAudioMeter.averagePower > 0.01 {
+        if !hasDetectedAudioInCurrentSession && Double(normalizedAverage) > 0.01 {
             hasDetectedAudioInCurrentSession = true
         }
-        
+
+        let newAudioMeter = AudioMeter(averagePower: Double(normalizedAverage), peakPower: Double(normalizedPeak))
+
         audioMeter = newAudioMeter
     }
     

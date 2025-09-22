@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AudioInputSettingsView: View {
     @ObservedObject var audioDeviceManager = AudioDeviceManager.shared
+    @ObservedObject private var systemAudioService = SystemAudioCaptureService.shared
     @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
@@ -17,12 +18,14 @@ struct AudioInputSettingsView: View {
     private var mainContent: some View {
         VStack(spacing: 40) {
             inputModeSection
-            
+
             if audioDeviceManager.inputMode == .custom {
                 customDeviceSection
             } else if audioDeviceManager.inputMode == .prioritized {
                 prioritizedDevicesSection
             }
+
+            systemAudioCaptureSection
         }
         .padding(.horizontal, 32)
         .padding(.vertical, 40)
@@ -66,6 +69,141 @@ struct AudioInputSettingsView: View {
                 }
             }
         }
+    }
+
+    private var systemAudioCaptureSection: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("System Audio Capture")
+                .font(.title2)
+                .fontWeight(.semibold)
+
+            Toggle(isOn: $systemAudioService.isCaptureEnabled) {
+                Text("Record system audio (requires loopback device)")
+            }
+            .toggleStyle(.switch)
+
+            if systemAudioService.isCaptureEnabled {
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack {
+                        Text("Loopback Device")
+                            .font(.headline)
+
+                        Spacer()
+
+                        Button(action: systemAudioService.refreshDevices) {
+                            Label("Refresh", systemImage: "arrow.clockwise")
+                        }
+                        .buttonStyle(.borderless)
+                    }
+
+                    if systemAudioService.availableDevices.isEmpty {
+                        Text("No loopback devices detected. Install BlackHole or a similar virtual audio driver and press Refresh.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } else {
+                        Picker("Loopback Device", selection: loopbackDeviceBinding) {
+                            ForEach(systemAudioService.availableDevices, id: \.uid) { device in
+                                Text(displayName(for: device)).tag(device.uid)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .labelsHidden()
+
+                        if let selected = selectedLoopbackDevice {
+                            Text(formatDeviceDetails(selected))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Recording Balance")
+                            .font(.headline)
+
+                        Slider(value: $systemAudioService.mixBalance, in: 0...1) {
+                            Text("Recording Balance")
+                        } minimumValueLabel: {
+                            Text("Mic")
+                        } maximumValueLabel: {
+                            Text("System")
+                        }
+
+                        let micPercentage = Int((1 - systemAudioService.mixBalance) * 100)
+                        let systemPercentage = Int(systemAudioService.mixBalance * 100)
+
+                        Text("Mic \(micPercentage)% • System \(systemPercentage)%")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Monitoring Volume During Capture")
+                            .font(.headline)
+
+                        Slider(value: $systemAudioService.playbackVolumeDuringCapture, in: 0...1) {
+                            Text("Monitoring Volume During Capture")
+                        } minimumValueLabel: {
+                            Text("Mute")
+                        } maximumValueLabel: {
+                            Text("Full")
+                        }
+
+                        let playbackPercentage = Int(systemAudioService.playbackVolumeDuringCapture * 100)
+                        Text("System output stays at \(playbackPercentage)% while recording")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            loopbackInstructions
+        }
+    }
+
+    private var loopbackInstructions: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Loopback driver setup")
+                .font(.headline)
+
+            Text("1. Install a loopback driver such as BlackHole or Loopback.")
+                .font(.caption)
+            Text("2. In Audio MIDI Setup, create a Multi-Output device that routes audio to your speakers and the loopback input.")
+                .font(.caption)
+            Text("3. Select the loopback device above and adjust the recording balance to match your needs.")
+                .font(.caption)
+
+            if let url = URL(string: "https://existential.audio/blackhole/") {
+                Link("Download BlackHole", destination: url)
+                    .font(.subheadline)
+            }
+        }
+        .padding()
+        .background(CardBackground(isSelected: false))
+    }
+
+    private var selectedLoopbackDevice: LoopbackDevice? {
+        guard let uid = systemAudioService.selectedDeviceUID else { return nil }
+        return systemAudioService.availableDevices.first { $0.uid == uid }
+    }
+
+    private var loopbackDeviceBinding: Binding<String> {
+        Binding(
+            get: { systemAudioService.selectedDeviceUID ?? "" },
+            set: { newValue in
+                systemAudioService.selectedDeviceUID = newValue.isEmpty ? nil : newValue
+            }
+        )
+    }
+
+    private func displayName(for device: LoopbackDevice) -> String {
+        device.isRecommended ? "\(device.name) (Recommended)" : device.name
+    }
+
+    private func formatDeviceDetails(_ device: LoopbackDevice) -> String {
+        let channelText = "\(device.channelCount) channel" + (device.channelCount == 1 ? "" : "s")
+        let sampleRate = Int(device.sampleRate)
+        return "\(channelText) • \(sampleRate) Hz"
     }
     
     private var customDeviceSection: some View {

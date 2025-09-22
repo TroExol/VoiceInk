@@ -6,6 +6,10 @@ extension UserDefaults {
         static let audioInputMode = "audioInputMode"
         static let selectedAudioDeviceUID = "selectedAudioDeviceUID"
         static let prioritizedDevices = "prioritizedDevices"
+        static let systemAudioCaptureEnabled = "systemAudioCaptureEnabled"
+        static let systemAudioDeviceUID = "systemAudioDeviceUID"
+        static let systemAudioMixBalance = "systemAudioMixBalance"
+        static let systemAudioPlaybackVolume = "systemAudioPlaybackVolume"
     }
     
     // MARK: - AI Provider API Key
@@ -31,4 +35,35 @@ extension UserDefaults {
         get { data(forKey: Keys.prioritizedDevices) }
         set { setValue(newValue, forKey: Keys.prioritizedDevices) }
     }
-} 
+
+    // MARK: - System Audio Capture
+    var isSystemAudioCaptureEnabled: Bool {
+        get { object(forKey: Keys.systemAudioCaptureEnabled) as? Bool ?? false }
+        set { set(newValue, forKey: Keys.systemAudioCaptureEnabled) }
+    }
+
+    var systemAudioDeviceUID: String? {
+        get { string(forKey: Keys.systemAudioDeviceUID) }
+        set { setValue(newValue, forKey: Keys.systemAudioDeviceUID) }
+    }
+
+    var systemAudioMixBalance: Double {
+        get {
+            if object(forKey: Keys.systemAudioMixBalance) == nil {
+                return 0.5
+            }
+            return double(forKey: Keys.systemAudioMixBalance)
+        }
+        set { set(newValue, forKey: Keys.systemAudioMixBalance) }
+    }
+
+    var systemAudioPlaybackVolume: Double {
+        get {
+            if object(forKey: Keys.systemAudioPlaybackVolume) == nil {
+                return 0.7
+            }
+            return double(forKey: Keys.systemAudioPlaybackVolume)
+        }
+        set { set(newValue, forKey: Keys.systemAudioPlaybackVolume) }
+    }
+}
