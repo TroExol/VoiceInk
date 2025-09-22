@@ -155,7 +155,63 @@ class AudioDeviceManager: ObservableObject {
             completion?()
         }
     }
-    
+
+    func getDeviceID(forUID uid: String) -> AudioDeviceID? {
+        availableDevices.first(where: { $0.uid == uid })?.id
+    }
+
+    func inputChannelCount(for deviceID: AudioDeviceID) -> UInt32? {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyStreamConfiguration,
+            mScope: kAudioDevicePropertyScopeInput,
+            mElement: kAudioObjectPropertyElementMain
+        )
+
+        var propertySize: UInt32 = 0
+        var status = AudioObjectGetPropertyDataSize(deviceID, &address, 0, nil, &propertySize)
+        if status != noErr {
+            logger.error("Failed to get channel count size for device \(deviceID): \(status)")
+            return nil
+        }
+
+        let bufferListPointer = UnsafeMutableRawPointer.allocate(
+            byteCount: Int(propertySize),
+            alignment: MemoryLayout<AudioBufferList>.alignment
+        )
+        defer { bufferListPointer.deallocate() }
+
+        status = AudioObjectGetPropertyData(deviceID, &address, 0, nil, &propertySize, bufferListPointer)
+        if status != noErr {
+            logger.error("Failed to read channel count for device \(deviceID): \(status)")
+            return nil
+        }
+
+        let audioBufferList = bufferListPointer.bindMemory(to: AudioBufferList.self, capacity: 1)
+        let buffers = UnsafeMutableAudioBufferListPointer(audioBufferList)
+        var channelCount: UInt32 = 0
+        for buffer in buffers {
+            channelCount += buffer.mNumberChannels
+        }
+        return channelCount
+    }
+
+    func nominalSampleRate(for deviceID: AudioDeviceID) -> Double? {
+        var sampleRate = 0.0
+        var propertySize = UInt32(MemoryLayout<Double>.size)
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyNominalSampleRate,
+            mScope: kAudioDevicePropertyScopeInput,
+            mElement: kAudioObjectPropertyElementMain
+        )
+
+        let status = AudioObjectGetPropertyData(deviceID, &address, 0, nil, &propertySize, &sampleRate)
+        if status != noErr {
+            logger.error("Failed to read sample rate for device \(deviceID): \(status)")
+            return nil
+        }
+        return sampleRate
+    }
+
     func getDeviceName(deviceID: AudioDeviceID) -> String? {
         let name: CFString? = getDeviceProperty(deviceID: deviceID,
                                               selector: kAudioDevicePropertyDeviceNameCFString)

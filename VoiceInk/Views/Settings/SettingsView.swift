@@ -14,6 +14,7 @@ struct SettingsView: View {
     @StateObject private var deviceManager = AudioDeviceManager.shared
     @ObservedObject private var mediaController = MediaController.shared
     @ObservedObject private var playbackController = PlaybackController.shared
+    @ObservedObject private var systemAudioService = SystemAudioCaptureService.shared
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = true
     @AppStorage("autoUpdateCheck") private var autoUpdateCheck = true
     @State private var showResetOnboardingAlert = false
@@ -270,6 +271,29 @@ struct SettingsView: View {
                 }
 
                 SettingsSection(
+                    icon: "waveform.circle",
+                    title: "System Audio Capture",
+                    subtitle: "Record and balance system sound"
+                ) {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Toggle(isOn: $systemAudioService.isSystemAudioCaptureEnabled) {
+                            Text("Record system audio")
+                        }
+                        .toggleStyle(.switch)
+
+                        if systemAudioService.isSystemAudioCaptureEnabled {
+                            systemLoopbackPicker
+                            mixBalanceControls
+                            Divider()
+                                .padding(.vertical, 6)
+                            captureVolumeControl
+                        }
+
+                        loopbackInstructionsCard
+                    }
+                }
+
+                SettingsSection(
                     icon: "speaker.wave.2.bubble.left.fill",
                     title: "Recording Feedback",
                     subtitle: "Customize app & system feedback"
@@ -284,10 +308,10 @@ struct SettingsView: View {
                         .toggleStyle(.switch)
 
                         Toggle(isOn: $mediaController.isSystemMuteEnabled) {
-                            Text("Mute system audio during recording")
+                            Text("Manage system audio during recording")
                         }
                         .toggleStyle(.switch)
-                        .localizedHelp("Automatically mute system audio when recording starts and restore when recording stops")
+                        .localizedHelp("Automatically mute or reduce system audio when recording starts and restore it when recording stops")
 
                         Toggle(isOn: Binding(
                             get: { UserDefaults.standard.bool(forKey: "preserveTranscriptInClipboard") },
@@ -449,7 +473,136 @@ struct SettingsView: View {
             Text("Are you sure you want to reset the onboarding? You'll see the introduction screens again the next time you launch the app.")
         }
     }
-    
+
+    private var systemLoopbackPicker: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if systemAudioService.availableSystemDevices.isEmpty {
+                Text("No loopback devices detected. Install a virtual audio driver such as BlackHole or Loopback.")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+            } else {
+                HStack {
+                    Text("Loopback device")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Picker(
+                        "Loopback device",
+                        selection: Binding(
+                            get: { systemAudioService.selectedSystemDeviceUID ?? "" },
+                            set: { value in
+                                systemAudioService.selectedSystemDeviceUID = value.isEmpty ? nil : value
+                            }
+                        )
+                    ) {
+                        Text("Not selected").tag("")
+                        ForEach(systemAudioService.availableSystemDevices, id: \.uid) { device in
+                            Text(device.name).tag(device.uid)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 260)
+                }
+            }
+        }
+    }
+
+    private var mixBalanceControls: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Mix balance")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(.secondary)
+            balanceSliderRow(
+                label: "System output",
+                value: Binding(
+                    get: { Double(systemAudioService.systemLevel) },
+                    set: { systemAudioService.systemLevel = Float($0) }
+                )
+            )
+            balanceSliderRow(
+                label: "Microphone",
+                value: Binding(
+                    get: { Double(systemAudioService.microphoneLevel) },
+                    set: { systemAudioService.microphoneLevel = Float($0) }
+                )
+            )
+        }
+    }
+
+    private func balanceSliderRow(label: String, value: Binding<Double>) -> some View {
+        HStack(spacing: 12) {
+            Text(label)
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+                .frame(width: 120, alignment: .leading)
+
+            Slider(value: value, in: 0...1)
+
+            Text("\(Int(value.wrappedValue * 100))%")
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+                .frame(width: 44, alignment: .trailing)
+        }
+    }
+
+    private var captureVolumeControl: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("System output volume during capture")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(.secondary)
+            HStack(spacing: 12) {
+                Slider(value: $mediaController.captureVolumeLevel, in: 0...1)
+                Text("\(Int(mediaController.captureVolumeLevel * 100))%")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+                    .frame(width: 44, alignment: .trailing)
+            }
+            Text("VoiceInk will fade the system output to this level while recording system audio.")
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+        }
+    }
+
+    private var loopbackInstructionsCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Loopback driver setup")
+                .font(.system(size: 13, weight: .medium))
+            Text("To capture system audio you'll need to route macOS output into a virtual loopback device.")
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Label("Install a loopback driver such as BlackHole or Loopback.", systemImage: "1.circle.fill")
+                    .labelStyle(.titleAndIcon)
+                Label("In Audio MIDI Setup create a multi-output device that includes your speakers and the loopback driver.", systemImage: "2.circle.fill")
+                    .labelStyle(.titleAndIcon)
+                Label("Select the loopback input device above so VoiceInk can record the system output.", systemImage: "3.circle.fill")
+                    .labelStyle(.titleAndIcon)
+            }
+            .font(.system(size: 12))
+            .foregroundColor(.secondary)
+
+            HStack(spacing: 16) {
+                if let blackHoleURL = URL(string: "https://github.com/ExistentialAudio/BlackHole") {
+                    Link("Download BlackHole", destination: blackHoleURL)
+                }
+                if let loopbackURL = URL(string: "https://rogueamoeba.com/loopback/") {
+                    Link("Loopback by Rogue Amoeba", destination: loopbackURL)
+                }
+            }
+            .font(.system(size: 12))
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(nsColor: NSColor.windowBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.black.opacity(0.05))
+        )
+    }
+
     @ViewBuilder
     private func hotkeyView(
         title: LocalizedStringKey,

@@ -2,6 +2,7 @@ import Foundation
 import AVFoundation
 import CoreAudio
 import os
+import Combine
 
 @MainActor
 class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
@@ -12,10 +13,19 @@ class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     private var isReconfiguring = false
     private let mediaController = MediaController.shared
     private let playbackController = PlaybackController.shared
-    @Published var audioMeter = AudioMeter(averagePower: 0, peakPower: 0)
+    private let systemAudioService = SystemAudioCaptureService.shared
+    @Published var audioMeter = AudioMeter(averagePower: 0, peakPower: 0) {
+        didSet {
+            if !hasDetectedAudioInCurrentSession && audioMeter.averagePower > 0.01 {
+                hasDetectedAudioInCurrentSession = true
+            }
+        }
+    }
     private var audioLevelCheckTask: Task<Void, Never>?
     private var audioMeterUpdateTask: Task<Void, Never>?
     private var hasDetectedAudioInCurrentSession = false
+    private var systemAudioMeterCancellable: AnyCancellable?
+    private var isUsingSystemCapture = false
     
     enum RecorderError: Error {
         case couldNotStartRecording
@@ -24,6 +34,12 @@ class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     override init() {
         super.init()
         setupDeviceChangeObserver()
+        systemAudioMeterCancellable = systemAudioService.$audioMeter
+            .receive(on: RunLoop.main)
+            .sink { [weak self] meter in
+                guard let self = self, self.isUsingSystemCapture else { return }
+                self.audioMeter = meter
+            }
     }
     
     private func setupDeviceChangeObserver() {
@@ -59,10 +75,10 @@ class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     
     func startRecording(toOutputFile url: URL) async throws {
         deviceManager.isRecordingActive = true
-        
+
         let currentDeviceID = deviceManager.getCurrentDevice()
         let lastDeviceID = UserDefaults.standard.string(forKey: "lastUsedMicrophoneDeviceID")
-        
+
         if String(currentDeviceID) != lastDeviceID {
             if let deviceName = deviceManager.availableDevices.first(where: { $0.id == currentDeviceID })?.name {
                 await MainActor.run {
@@ -79,8 +95,9 @@ class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
             }
         }
         UserDefaults.standard.set(String(currentDeviceID), forKey: "lastUsedMicrophoneDeviceID")
-        
+
         hasDetectedAudioInCurrentSession = false
+        audioMeter = AudioMeter(averagePower: 0, peakPower: 0)
 
         let deviceID = deviceManager.getCurrentDevice()
         if deviceID != 0 {
@@ -90,83 +107,129 @@ class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
                 logger.warning("⚠️ Failed to configure audio session for device \(deviceID), attempting to continue: \(error.localizedDescription)")
             }
         }
-        
-        let recordSettings: [String: Any] = [
-            AVFormatIDKey: Int(kAudioFormatLinearPCM),
-            AVSampleRateKey: 16000.0,
-            AVNumberOfChannelsKey: 1,
-            AVLinearPCMBitDepthKey: 16,
-            AVLinearPCMIsFloatKey: false,
-            AVLinearPCMIsBigEndianKey: false,
-            AVLinearPCMIsNonInterleaved: false
-        ]
-        
-        do {
-            recorder = try AVAudioRecorder(url: url, settings: recordSettings)
-            recorder?.delegate = self
-            recorder?.isMeteringEnabled = true
-            
-            if recorder?.record() == false {
-                logger.error("❌ Could not start recording")
+
+        audioLevelCheckTask?.cancel()
+        audioMeterUpdateTask?.cancel()
+
+        isUsingSystemCapture = systemAudioService.isSystemAudioCaptureEnabled
+
+        if isUsingSystemCapture {
+            do {
+                try systemAudioService.startCapture(to: url, microphoneDeviceID: deviceID, includeSystemAudio: true)
+            } catch {
+                deviceManager.isRecordingActive = false
+                isUsingSystemCapture = false
+                systemAudioService.stopCapture()
+
+                if let captureError = error as? SystemAudioCaptureService.SystemAudioCaptureError {
+                    logger.error("System audio capture failed: \(captureError.localizedDescription)")
+                    await MainActor.run {
+                        NotificationManager.shared.showNotification(
+                            title: captureError.localizedDescription,
+                            type: .error
+                        )
+                    }
+                } else {
+                    logger.error("System audio capture failed: \(error.localizedDescription)")
+                }
+
                 throw RecorderError.couldNotStartRecording
             }
-            
-            Task { [weak self] in
-                guard let self = self else { return }
-                await self.playbackController.pauseMedia()
+        } else {
+            let recordSettings: [String: Any] = [
+                AVFormatIDKey: Int(kAudioFormatLinearPCM),
+                AVSampleRateKey: 16000.0,
+                AVNumberOfChannelsKey: 1,
+                AVLinearPCMBitDepthKey: 16,
+                AVLinearPCMIsFloatKey: false,
+                AVLinearPCMIsBigEndianKey: false,
+                AVLinearPCMIsNonInterleaved: false
+            ]
+
+            do {
+                recorder = try AVAudioRecorder(url: url, settings: recordSettings)
+                recorder?.delegate = self
+                recorder?.isMeteringEnabled = true
+
+                if recorder?.record() == false {
+                    logger.error("❌ Could not start recording")
+                    throw RecorderError.couldNotStartRecording
+                }
+            } catch {
+                logger.error("Failed to create audio recorder: \(error.localizedDescription)")
+                stopRecording()
+                throw RecorderError.couldNotStartRecording
+            }
+        }
+
+        Task { [weak self] in
+            guard let self = self else { return }
+            await self.playbackController.pauseMedia()
+            if self.isUsingSystemCapture {
+                await self.mediaController.reduceVolumeForCapture()
+            } else {
                 _ = await self.mediaController.muteSystemAudio()
             }
-            
-            audioLevelCheckTask?.cancel()
-            audioMeterUpdateTask?.cancel()
-            
+        }
+
+        if !isUsingSystemCapture {
             audioMeterUpdateTask = Task {
                 while recorder != nil && !Task.isCancelled {
                     updateAudioMeter()
                     try? await Task.sleep(nanoseconds: 33_000_000)
                 }
             }
-            
-            audioLevelCheckTask = Task {
-                let notificationChecks: [TimeInterval] = [5.0, 12.0]
+        }
 
-                for delay in notificationChecks {
-                    try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+        audioLevelCheckTask = Task { [weak self] in
+            guard let self = self else { return }
+            let notificationChecks: [TimeInterval] = [5.0, 12.0]
 
-                    if Task.isCancelled { return }
+            for delay in notificationChecks {
+                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
 
-                    if self.hasDetectedAudioInCurrentSession {
-                        return
-                    }
+                if Task.isCancelled { return }
 
-                    await MainActor.run {
-                        NotificationManager.shared.showNotification(
-                            title: String(localized: "notifications.noAudioDetected"),
-                            type: .warning
-                        )
-                    }
+                if self.hasDetectedAudioInCurrentSession {
+                    return
+                }
+
+                await MainActor.run {
+                    NotificationManager.shared.showNotification(
+                        title: String(localized: "notifications.noAudioDetected"),
+                        type: .warning
+                    )
                 }
             }
-            
-        } catch {
-            logger.error("Failed to create audio recorder: \(error.localizedDescription)")
-            stopRecording()
-            throw RecorderError.couldNotStartRecording
         }
     }
     
     func stopRecording() {
         audioLevelCheckTask?.cancel()
         audioMeterUpdateTask?.cancel()
-        recorder?.stop()
-        recorder = nil
+
+        let wasUsingSystemCapture = isUsingSystemCapture
+
+        if wasUsingSystemCapture {
+            systemAudioService.stopCapture()
+        } else {
+            recorder?.stop()
+            recorder = nil
+        }
+
         audioMeter = AudioMeter(averagePower: 0, peakPower: 0)
-        
+
         Task {
-            await mediaController.unmuteSystemAudio()
+            if wasUsingSystemCapture {
+                await mediaController.restoreVolumeAfterCapture()
+            } else {
+                await mediaController.unmuteSystemAudio()
+            }
             try? await Task.sleep(nanoseconds: 100_000_000)
             await playbackController.resumeMedia()
         }
+
+        isUsingSystemCapture = false
         deviceManager.isRecordingActive = false
     }
 
@@ -199,11 +262,6 @@ class Recorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
         }
         
         let newAudioMeter = AudioMeter(averagePower: Double(normalizedAverage), peakPower: Double(normalizedPeak))
-
-        if !hasDetectedAudioInCurrentSession && newAudioMeter.averagePower > 0.01 {
-            hasDetectedAudioInCurrentSession = true
-        }
-        
         audioMeter = newAudioMeter
     }
     
