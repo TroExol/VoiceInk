@@ -7,6 +7,7 @@ struct TranscriptionCard: View {
     let isSelected: Bool
     let onDelete: () -> Void
     let onToggleSelection: () -> Void
+    let activeSpeakers: Set<String>?
     @State private var isAIRequestExpanded: Bool = false
     
     var body: some View {
@@ -36,24 +37,8 @@ struct TranscriptionCard: View {
                         .cornerRadius(6)
                 }
                 
-                // Original text section
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(transcription.text)
-                        .font(.system(size: 15, weight: .regular, design: .default))
-                        .lineLimit(isExpanded ? nil : 2)
-                        .lineSpacing(2)
-                    
-                    if isExpanded {
-                        HStack {
-                            Text("Original")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.secondary)
-                            Spacer()
-                            AnimatedCopyButton(textToCopy: transcription.text)
-                        }
-                    }
-                }
-                
+                speakerSegmentSection
+
                 // Enhanced text section (only when expanded)
                 if isExpanded, let enhancedText = transcription.enhancedText {
                     Divider()
@@ -233,4 +218,158 @@ struct TranscriptionCard: View {
                 .foregroundColor(.secondary)
         }
     }
+}
+
+extension TranscriptionCard {
+    private var speakerSegmentSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if hasSegments {
+                if filteredSegments.isEmpty {
+                    Text("No segments match the selected speaker filter.")
+                        .font(.system(size: 14, weight: .regular))
+                        .foregroundColor(.secondary)
+                        .padding(.vertical, 4)
+                } else {
+                    ForEach(segmentsForDisplay) { segment in
+                        segmentRow(for: segment)
+                    }
+
+                    if shouldShowHiddenSegmentsNotice {
+                        Text("Expand to view more segments…")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.secondary)
+                    }
+
+                    if isExpanded {
+                        HStack {
+                            Text("Original")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            AnimatedCopyButton(textToCopy: transcription.text)
+                        }
+                    }
+                }
+            } else {
+                Text(transcription.text)
+                    .font(.system(size: 15, weight: .regular, design: .default))
+                    .lineLimit(isExpanded ? nil : 2)
+                    .lineSpacing(2)
+
+                if isExpanded {
+                    HStack {
+                        Text("Original")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        AnimatedCopyButton(textToCopy: transcription.text)
+                    }
+                }
+            }
+        }
+    }
+
+    private func segmentRow(for segment: TranscriptionSegment) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .top, spacing: 8) {
+                Text(segment.speaker)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(speakerAccentColor(for: segment))
+
+                if segment.isSpeakerDerived {
+                    Text("Auto")
+                        .font(.system(size: 11, weight: .medium))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(speakerAccentColor(for: segment).opacity(0.15))
+                        .cornerRadius(6)
+                }
+
+                Spacer()
+
+                Text(formatTimeRange(start: segment.start, end: segment.end))
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.secondary)
+
+                AnimatedCopyButton(textToCopy: segment.text)
+            }
+
+            Text(segment.text)
+                .font(.system(size: 15, weight: .regular, design: .default))
+                .foregroundColor(.primary)
+                .lineSpacing(2)
+        }
+        .padding(12)
+        .background(speakerAccentColor(for: segment).opacity(0.08))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(speakerAccentColor(for: segment).opacity(0.35), lineWidth: 1)
+        )
+        .cornerRadius(10)
+    }
+
+    private var hasSegments: Bool {
+        !sortedSegments.isEmpty
+    }
+
+    private var sortedSegments: [TranscriptionSegment] {
+        transcription.segments.sorted { $0.start < $1.start }
+    }
+
+    private var filteredSegments: [TranscriptionSegment] {
+        guard let activeSpeakers else {
+            return sortedSegments
+        }
+        if activeSpeakers.isEmpty {
+            return []
+        }
+        return sortedSegments.filter { activeSpeakers.contains($0.speaker) }
+    }
+
+    private var segmentsForDisplay: [TranscriptionSegment] {
+        if isExpanded {
+            return filteredSegments
+        }
+        return Array(filteredSegments.prefix(3))
+    }
+
+    private var shouldShowHiddenSegmentsNotice: Bool {
+        !isExpanded && filteredSegments.count > segmentsForDisplay.count
+    }
+
+    private func speakerAccentColor(for segment: TranscriptionSegment) -> Color {
+        let palette = Self.speakerPalette
+        let index = max(0, segment.speakerIndex) % palette.count
+        return palette[index]
+    }
+
+    private func formatTimeRange(start: TimeInterval, end: TimeInterval) -> String {
+        let startString = formatTimestamp(start)
+        let endString = formatTimestamp(end)
+        return "\(startString) – \(endString)"
+    }
+
+    private func formatTimestamp(_ time: TimeInterval) -> String {
+        guard time.isFinite && !time.isNaN else { return "--:--" }
+        if let formatted = Self.timestampFormatter.string(from: time) {
+            return formatted
+        }
+        return String(format: "%.2fs", time)
+    }
+
+    private static let timestampFormatter: DateComponentsFormatter = {
+        let formatter = DateComponentsFormatter()
+        formatter.allowedUnits = [.minute, .second]
+        formatter.zeroFormattingBehavior = [.pad]
+        return formatter
+    }()
+
+    private static let speakerPalette: [Color] = [
+        Color(red: 0.28, green: 0.52, blue: 0.95),
+        Color(red: 0.93, green: 0.74, blue: 0.23),
+        Color(red: 0.88, green: 0.39, blue: 0.45),
+        Color(red: 0.40, green: 0.74, blue: 0.37),
+        Color(red: 0.60, green: 0.47, blue: 0.85),
+        Color(red: 0.98, green: 0.59, blue: 0.20)
+    ]
 }

@@ -52,6 +52,7 @@ class WhisperState: NSObject, ObservableObject {
     
     // Prompt detection service for trigger word handling
     private let promptDetectionService = PromptDetectionService()
+    private let speakerDiarizationService = SpeakerDiarizationService.shared
     
     let modelContext: ModelContext
     
@@ -268,6 +269,12 @@ class WhisperState: NSObject, ObservableObject {
 
             let transcriptionStart = Date()
             var text = try await transcriptionService.transcribe(audioURL: url, model: model)
+            let diarizationMetadata: [WhisperSegmentMetadata]?
+            if model.provider == .local {
+                diarizationMetadata = localTranscriptionService.consumeLastSegments()
+            } else {
+                diarizationMetadata = nil
+            }
             text = WhisperHallucinationFilter.filter(text)
             let transcriptionDuration = Date().timeIntervalSince(transcriptionStart)
             
@@ -317,6 +324,12 @@ class WhisperState: NSObject, ObservableObject {
                         aiRequestUserMessage: enhancementService.lastUserMessageSent
                     )
                     modelContext.insert(newTranscription)
+                    speakerDiarizationService.attachSegments(
+                        from: diarizationMetadata,
+                        to: newTranscription,
+                        baseText: originalText,
+                        audioDuration: actualDuration
+                    )
                     try? modelContext.save()
                     NotificationCenter.default.post(name: .transcriptionCreated, object: newTranscription)
                     text = enhancedText
@@ -338,9 +351,15 @@ class WhisperState: NSObject, ObservableObject {
                         transcriptionDuration: transcriptionDuration
                     )
                     modelContext.insert(newTranscription)
+                    speakerDiarizationService.attachSegments(
+                        from: diarizationMetadata,
+                        to: newTranscription,
+                        baseText: originalText,
+                        audioDuration: actualDuration
+                    )
                     try? modelContext.save()
                     NotificationCenter.default.post(name: .transcriptionCreated, object: newTranscription)
-                    
+
                     await MainActor.run {
                         NotificationManager.shared.showNotification(
                             title: String(localized: "notifications.aiEnhancementFailed"),
@@ -358,6 +377,12 @@ class WhisperState: NSObject, ObservableObject {
                     transcriptionDuration: transcriptionDuration
                 )
                 modelContext.insert(newTranscription)
+                speakerDiarizationService.attachSegments(
+                    from: diarizationMetadata,
+                    to: newTranscription,
+                    baseText: originalText,
+                    audioDuration: actualDuration
+                )
                 try? modelContext.save()
                 NotificationCenter.default.post(name: .transcriptionCreated, object: newTranscription)
             }

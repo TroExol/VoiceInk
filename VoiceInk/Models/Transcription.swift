@@ -16,7 +16,9 @@ final class Transcription {
     var enhancementDuration: TimeInterval?
     var aiRequestSystemMessage: String?
     var aiRequestUserMessage: String?
-    
+    @Relationship(deleteRule: .cascade, inverse: \TranscriptionSegment.transcription)
+    var segments: [TranscriptionSegment] = []
+
     init(text: String, duration: TimeInterval, enhancedText: String? = nil, audioFileURL: String? = nil, transcriptionModelName: String? = nil, aiEnhancementModelName: String? = nil, promptName: String? = nil, transcriptionDuration: TimeInterval? = nil, enhancementDuration: TimeInterval? = nil, aiRequestSystemMessage: String? = nil, aiRequestUserMessage: String? = nil) {
         self.id = UUID()
         self.text = text
@@ -31,5 +33,6 @@ final class Transcription {
         self.enhancementDuration = enhancementDuration
         self.aiRequestSystemMessage = aiRequestSystemMessage
         self.aiRequestUserMessage = aiRequestUserMessage
+        self.segments = []
     }
 }

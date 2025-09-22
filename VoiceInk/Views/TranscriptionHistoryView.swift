@@ -10,6 +10,8 @@ struct TranscriptionHistoryView: View {
     @State private var showDeleteConfirmation = false
     @State private var isViewCurrentlyVisible = false
     @State private var showAnalysisView = false
+    @State private var selectedSpeakerFilter: String? = nil
+    @State private var speakerSearchText: String = ""
     
     private let exportService = VoiceInkCSVExportService()
     
@@ -68,19 +70,24 @@ struct TranscriptionHistoryView: View {
             VStack(spacing: 0) {
                 searchBar
                 
-                if displayedTranscriptions.isEmpty && !isLoading {
-                    emptyStateView
+                if filteredTranscriptions.isEmpty && !isLoading {
+                    if displayedTranscriptions.isEmpty {
+                        emptyStateView
+                    } else {
+                        speakerFilterEmptyStateView
+                    }
                 } else {
                     ScrollViewReader { proxy in
                         ScrollView {
                             LazyVStack(spacing: 10) {
-                                ForEach(displayedTranscriptions) { transcription in
+                                ForEach(filteredTranscriptions) { transcription in
                                     TranscriptionCard(
                                         transcription: transcription,
                                         isExpanded: expandedTranscription == transcription,
                                         isSelected: selectedTranscriptions.contains(transcription),
                                         onDelete: { deleteTranscription(transcription) },
-                                        onToggleSelection: { toggleSelection(transcription) }
+                                        onToggleSelection: { toggleSelection(transcription) },
+                                        activeSpeakers: speakerFilterSet
                                     )
                                     .id(transcription.id)
                                     .onTapGesture {
@@ -179,6 +186,9 @@ struct TranscriptionHistoryView: View {
                 }
             }
         }
+        .onChange(of: displayedTranscriptions) { _, _ in
+            refreshSpeakerFilterAvailability()
+        }
     }
 
     private func toggleExpansion(for transcription: Transcription) {
@@ -220,12 +230,70 @@ struct TranscriptionHistoryView: View {
     }
 
     private var searchBar: some View {
-        HStack {
-            Image(systemName: "magnifyingglass")
-                .foregroundColor(.secondary)
-            TextField("Search transcriptions", text: $searchText)
-                .font(.system(size: 16, weight: .regular, design: .default))
-                .textFieldStyle(PlainTextFieldStyle())
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.secondary)
+                TextField("Search transcriptions", text: $searchText)
+                    .font(.system(size: 16, weight: .regular, design: .default))
+                    .textFieldStyle(PlainTextFieldStyle())
+            }
+
+            HStack(spacing: 12) {
+                Menu {
+                    Button("All Speakers") {
+                        selectedSpeakerFilter = nil
+                    }
+
+                    if !availableSpeakers.isEmpty {
+                        Divider()
+                        ForEach(availableSpeakers, id: \.self) { speaker in
+                            Button(action: {
+                                selectedSpeakerFilter = speaker
+                            }) {
+                                HStack {
+                                    Text(speaker)
+                                    if selectedSpeakerFilter == speaker {
+                                        Spacer()
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "person.2")
+                            .foregroundColor(.secondary)
+                        Text(selectedSpeakerFilter ?? "All Speakers")
+                            .font(.system(size: 13, weight: .medium))
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Color(NSColor.controlBackgroundColor))
+                    .cornerRadius(6)
+                }
+
+                TextField("Search speaker", text: $speakerSearchText)
+                    .textFieldStyle(PlainTextFieldStyle())
+                    .font(.system(size: 13))
+                    .frame(maxWidth: 220)
+                    .disableAutocorrection(true)
+
+                if selectedSpeakerFilter != nil || !speakerSearchText.isEmpty {
+                    Button {
+                        selectedSpeakerFilter = nil
+                        speakerSearchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
         }
         .padding(12)
         .background(CardBackground(isSelected: false))
@@ -247,6 +315,70 @@ struct TranscriptionHistoryView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(CardBackground(isSelected: false))
         .padding(24)
+    }
+
+    private var speakerFilterEmptyStateView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "person.2.fill")
+                .font(.system(size: 44))
+                .foregroundColor(.secondary)
+            Text("No segments found for the selected speaker")
+                .font(.system(size: 18, weight: .semibold))
+            Text("Try clearing the speaker filter or adjusting your search.")
+                .font(.system(size: 14))
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(CardBackground(isSelected: false))
+        .padding(24)
+    }
+
+    private var filteredTranscriptions: [Transcription] {
+        guard let speakerFilterSet else { return displayedTranscriptions }
+        return displayedTranscriptions.filter { transcription in
+            let speakerNames = transcription.segments.map { $0.speaker }
+            return !speakerNames.filter { speakerFilterSet.contains($0) }.isEmpty
+        }
+    }
+
+    private var availableSpeakers: [String] {
+        var names = Set<String>()
+        for transcription in displayedTranscriptions {
+            for segment in transcription.segments {
+                names.insert(segment.speaker)
+            }
+        }
+        return names.sorted()
+    }
+
+    private var speakerFilterSet: Set<String>? {
+        let trimmedQuery = speakerSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let selectionSet: Set<String> = selectedSpeakerFilter.map { [$0] } ?? []
+        let queryMatches: Set<String>
+        if trimmedQuery.isEmpty {
+            queryMatches = []
+        } else {
+            let lowercased = trimmedQuery.lowercased()
+            let matches = availableSpeakers.filter { $0.lowercased().contains(lowercased) }
+            queryMatches = Set(matches)
+        }
+
+        if selectionSet.isEmpty && queryMatches.isEmpty {
+            return trimmedQuery.isEmpty ? nil : []
+        } else if selectionSet.isEmpty {
+            return queryMatches.isEmpty ? nil : queryMatches
+        } else if queryMatches.isEmpty {
+            return selectionSet
+        } else {
+            let intersection = selectionSet.intersection(queryMatches)
+            return intersection.isEmpty ? selectionSet : intersection
+        }
+    }
+
+    private func refreshSpeakerFilterAvailability() {
+        if let selected = selectedSpeakerFilter, !availableSpeakers.contains(selected) {
+            selectedSpeakerFilter = nil
+        }
     }
     
     private var selectionToolbar: some View {

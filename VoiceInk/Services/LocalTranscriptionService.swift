@@ -3,11 +3,12 @@ import AVFoundation
 import os
 
 class LocalTranscriptionService: TranscriptionService {
-    
+
     private var whisperContext: WhisperContext?
     private let logger = Logger(subsystem: "com.prakashjoshipax.voiceink", category: "LocalTranscriptionService")
     private let modelsDirectory: URL
     private weak var whisperState: WhisperState?
+    private var lastSegments: [WhisperSegmentMetadata] = []
     
     init(modelsDirectory: URL, whisperState: WhisperState? = nil) {
         self.modelsDirectory = modelsDirectory
@@ -15,6 +16,7 @@ class LocalTranscriptionService: TranscriptionService {
     }
     
     func transcribe(audioURL: URL, model: any TranscriptionModel) async throws -> String {
+        lastSegments = []
         guard model.provider == .local else {
             throw WhisperStateError.modelLoadFailed
         }
@@ -70,16 +72,22 @@ class LocalTranscriptionService: TranscriptionService {
         }
         
         var text = await whisperContext.getTranscription()
+        lastSegments = await whisperContext.getSegments()
 
         logger.notice("✅ Local transcription completed successfully.")
-        
+
         // Only release resources if we created a new context (not using the shared one)
         if await whisperState?.whisperContext !== whisperContext {
             await whisperContext.releaseResources()
             self.whisperContext = nil
         }
-        
+
         return text
+    }
+
+    func consumeLastSegments() -> [WhisperSegmentMetadata] {
+        defer { lastSegments = [] }
+        return lastSegments
     }
     
     private func readAudioSamples(_ url: URL) throws -> [Float] {

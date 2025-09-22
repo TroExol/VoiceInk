@@ -16,6 +16,8 @@ struct SettingsView: View {
     @ObservedObject private var playbackController = PlaybackController.shared
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = true
     @AppStorage("autoUpdateCheck") private var autoUpdateCheck = true
+    @AppStorage(SpeakerDiarizationService.selectedModelDefaultsKey) private var diarizationModelRawValue = SpeakerDiarizationService.Model.whisper.rawValue
+    @AppStorage(SpeakerDiarizationService.fallbackDefaultsKey) private var diarizationFallbackEnabled = true
     @State private var showResetOnboardingAlert = false
     @State private var currentShortcut = KeyboardShortcuts.getShortcut(for: .toggleMiniRecorder)
     @State private var isCustomCancelEnabled = false
@@ -302,6 +304,40 @@ struct SettingsView: View {
                 }
 
                 ExperimentalFeaturesSection()
+
+                SettingsSection(
+                    icon: "person.2.wave.2",
+                    title: "Speaker Diarization",
+                    subtitle: "Label speakers in your transcripts"
+                ) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("Diarization model")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Picker("", selection: Binding(
+                                get: { SpeakerDiarizationService.Model(rawValue: diarizationModelRawValue) ?? .whisper },
+                                set: { diarizationModelRawValue = $0.rawValue }
+                            )) {
+                                ForEach(SpeakerDiarizationService.Model.allCases) { model in
+                                    Text(model.displayName).tag(model)
+                                }
+                            }
+                            .labelsHidden()
+                            .frame(width: 220)
+                        }
+
+                        Text(SpeakerDiarizationService.Model(rawValue: diarizationModelRawValue)?.description ?? "")
+                            .settingsDescription()
+
+                        Toggle("Fallback to single speaker when labels are unavailable", isOn: $diarizationFallbackEnabled)
+                            .toggleStyle(.switch)
+
+                        Text("When enabled, the transcript is saved as a single segment if no speaker labels are returned.")
+                            .settingsDescription()
+                    }
+                }
 
                 SettingsSection(
                     icon: "rectangle.on.rectangle",

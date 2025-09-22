@@ -1,10 +1,25 @@
 import Foundation
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#endif
 #if canImport(whisper)
 import whisper
 #else
 #error("Unable to import whisper module. Please check your project configuration.")
 #endif
 import os
+
+struct WhisperSegmentMetadata {
+    let index: Int
+    let startTime: TimeInterval
+    let endTime: TimeInterval
+    let text: String
+    let speakerId: String
+    let speakerIndex: Int
+    let isSpeakerDerived: Bool
+}
 
 
 // Meet Whisper C++ constraint: Don't access from more than one thread at a time.
@@ -110,6 +125,71 @@ actor WhisperContext {
         return transcription
     }
 
+    func getSegments() -> [WhisperSegmentMetadata] {
+        guard let context = context else { return [] }
+        let totalSegments = Int(whisper_full_n_segments(context))
+        guard totalSegments > 0 else { return [] }
+
+        var resolvedSpeakerMapping: [String: Int] = [:]
+        var currentDerivedIndex = 0
+        var segments: [WhisperSegmentMetadata] = []
+        segments.reserveCapacity(totalSegments)
+
+        for rawIndex in 0..<totalSegments {
+            let segmentIndex = Int32(rawIndex)
+
+            if rawIndex > 0 && whisper_full_get_segment_speaker_turn_next(context, Int32(rawIndex - 1)) {
+                currentDerivedIndex += 1
+            }
+
+            let startTicks = whisper_full_get_segment_t0(context, segmentIndex)
+            let endTicks = whisper_full_get_segment_t1(context, segmentIndex)
+            let startTime = TimeInterval(startTicks) * 0.01
+            let endTime = TimeInterval(endTicks) * 0.01
+            let rawText = String(cString: whisper_full_get_segment_text(context, segmentIndex))
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+
+            let resolvedSpeaker = WhisperContext.speakerLabelResolver.speakerLabel(
+                for: context,
+                segmentIndex: segmentIndex
+            )?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            let speakerId: String
+            let speakerIndex: Int
+            let isDerived: Bool
+
+            if let resolvedSpeaker, !resolvedSpeaker.isEmpty {
+                if let existingIndex = resolvedSpeakerMapping[resolvedSpeaker] {
+                    speakerIndex = existingIndex
+                } else {
+                    let newIndex = resolvedSpeakerMapping.count
+                    resolvedSpeakerMapping[resolvedSpeaker] = newIndex
+                    speakerIndex = newIndex
+                }
+                speakerId = resolvedSpeaker
+                isDerived = false
+            } else {
+                let assignedIndex = currentDerivedIndex
+                speakerIndex = assignedIndex
+                speakerId = WhisperContext.fallbackSpeakerLabel(for: assignedIndex)
+                isDerived = true
+            }
+
+            let metadata = WhisperSegmentMetadata(
+                index: rawIndex,
+                startTime: startTime,
+                endTime: endTime,
+                text: rawText,
+                speakerId: speakerId,
+                speakerIndex: speakerIndex,
+                isSpeakerDerived: isDerived
+            )
+            segments.append(metadata)
+        }
+
+        return segments
+    }
+
     static func createContext(path: String) async throws -> WhisperContext {
         let whisperContext = WhisperContext()
         try await whisperContext.initializeModel(path: path)
@@ -162,4 +242,38 @@ actor WhisperContext {
 
 fileprivate func cpuCount() -> Int {
     ProcessInfo.processInfo.processorCount
+}
+
+private extension WhisperContext {
+    static func fallbackSpeakerLabel(for index: Int) -> String {
+        "speaker_\(index + 1)"
+    }
+
+    static let speakerLabelResolver = WhisperSegmentSpeakerResolver()
+
+    struct WhisperSegmentSpeakerResolver {
+        private typealias WhisperSpeakerFunction = @convention(c) (OpaquePointer?, Int32) -> UnsafePointer<CChar>?
+
+        private let functionPointer: WhisperSpeakerFunction?
+
+        init() {
+            #if canImport(Darwin)
+            let defaultHandle = UnsafeMutableRawPointer(bitPattern: -2)
+            #else
+            let defaultHandle: UnsafeMutableRawPointer? = nil
+            #endif
+            if let symbol = dlsym(defaultHandle, "whisper_full_get_segment_speaker") {
+                functionPointer = unsafeBitCast(symbol, to: WhisperSpeakerFunction.self)
+            } else {
+                functionPointer = nil
+            }
+        }
+
+        func speakerLabel(for context: OpaquePointer?, segmentIndex: Int32) -> String? {
+            guard let functionPointer, let pointer = functionPointer(context, segmentIndex) else {
+                return nil
+            }
+            return String(validatingUTF8: pointer)
+        }
+    }
 }
