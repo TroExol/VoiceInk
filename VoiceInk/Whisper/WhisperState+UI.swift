@@ -35,10 +35,16 @@ extension WhisperState {
     // MARK: - Mini Recorder Management
     
     func toggleMiniRecorder() async {
+        if recordingState == .busy { return }
+
         if isMiniRecorderVisible {
-            if recordingState == .recording {
+            switch recordingState {
+            case .recording:
                 await toggleRecord()
-            } else {
+            case .transcribing, .enhancing:
+                SoundManager.shared.playStartSound()
+                await toggleRecord()
+            default:
                 await cancelRecording()
             }
         } else {
@@ -62,13 +68,15 @@ extension WhisperState {
         await MainActor.run {
             self.recordingState = .busy
         }
-        
+
         if wasRecording {
             await recorder.stopRecording()
         }
-        
+
+        clearCurrentRecordingSession()
+
         hideRecorderPanel()
-        
+
         await MainActor.run {
             isMiniRecorderVisible = false
         }
@@ -83,6 +91,7 @@ extension WhisperState {
     func resetOnLaunch() async {
         logger.notice("🔄 Resetting recording state on launch")
         await recorder.stopRecording()
+        resetSessionTracking()
         hideRecorderPanel()
         await MainActor.run {
             isMiniRecorderVisible = false
