@@ -36,9 +36,13 @@ extension WhisperState {
     
     func toggleMiniRecorder() async {
         if isMiniRecorderVisible {
-            if recordingState == .recording {
+            switch recordingState {
+            case .recording:
                 await toggleRecord()
-            } else {
+            case .transcribing, .enhancing:
+                SoundManager.shared.playStartSound()
+                await toggleRecord()
+            default:
                 await cancelRecording()
             }
         } else {
@@ -51,32 +55,43 @@ extension WhisperState {
             }
         }
     }
-    
-    func dismissMiniRecorder() async {
+
+    func dismissMiniRecorder(for sessionID: UUID? = nil) async {
+        if let sessionID = sessionID,
+           let activeSessionID = activeSessionID,
+           sessionID != activeSessionID {
+            return
+        }
+
         if recordingState == .busy { return }
-        
+
         let wasRecording = recordingState == .recording
-        
+
         logger.notice("📱 Dismissing \(self.recorderType) recorder")
-        
+
         await MainActor.run {
             self.recordingState = .busy
         }
-        
+
         if wasRecording {
             await recorder.stopRecording()
         }
-        
+
         hideRecorderPanel()
-        
+
         await MainActor.run {
             isMiniRecorderVisible = false
         }
-        
+
         await cleanupModelResources()
-        
+
         await MainActor.run {
             recordingState = .idle
+        }
+
+        if sessionID == nil || activeSessionID == sessionID {
+            activeSessionID = nil
+            currentRecordingSessionID = nil
         }
     }
     
