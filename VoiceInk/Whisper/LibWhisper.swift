@@ -26,7 +26,6 @@ actor WhisperContext {
     private var prompt: String?
     private var promptCString: [CChar]?
     private var vadModelPathCString: [CChar]?
-    private var vadModelPathPointer: UnsafePointer<CChar>?
     private var vadModelPath: String?
     private let logger = Logger(subsystem: "com.prakashjoshipax.voiceink", category: "WhisperContext")
 
@@ -90,11 +89,8 @@ actor WhisperContext {
         if isVADEnabled, let vadModelPath = self.vadModelPath {
             params.vad = true
             vadModelPathCString = Array(vadModelPath.utf8CString)
-            vadModelPathPointer = vadModelPathCString?.withUnsafeBufferPointer { buffer in
-                buffer.baseAddress
-            }
-            if let vadModelPathPointer {
-                params.vad_model_path = vadModelPathPointer
+            if let pointer = vadModelPathCString?.withUnsafeBufferPointer({ $0.baseAddress }) {
+                params.vad_model_path = pointer
             }
 
             var vadParams = whisper_vad_default_params()
@@ -108,7 +104,6 @@ actor WhisperContext {
         } else {
             params.vad = false
             vadModelPathCString = nil
-            vadModelPathPointer = nil
         }
         
         var success = true
@@ -121,7 +116,7 @@ actor WhisperContext {
         
         languageCString = nil
         promptCString = nil
-        
+
         return success
     }
 
@@ -219,7 +214,6 @@ actor WhisperContext {
             self.context = nil
         }
         languageCString = nil
-        vadModelPathPointer = nil
     }
 
     func setPrompt(_ prompt: String?) {
