@@ -8,6 +8,7 @@ class LocalTranscriptionService: TranscriptionService {
     private let logger = Logger(subsystem: "com.prakashjoshipax.voiceink", category: "LocalTranscriptionService")
     private let modelsDirectory: URL
     private weak var whisperState: WhisperState?
+    private var lastSegments: [WhisperTranscriptionSegment] = []
     
     init(modelsDirectory: URL, whisperState: WhisperState? = nil) {
         self.modelsDirectory = modelsDirectory
@@ -63,12 +64,13 @@ class LocalTranscriptionService: TranscriptionService {
         
         // Transcribe
         let success = await whisperContext.fullTranscribe(samples: data)
-        
+
         guard success else {
             logger.error("Core transcription engine failed (whisper_full).")
             throw WhisperStateError.whisperCoreFailed
         }
-        
+
+        lastSegments = await whisperContext.getSegments()
         var text = await whisperContext.getTranscription()
 
         logger.notice("✅ Local transcription completed successfully.")
@@ -80,6 +82,12 @@ class LocalTranscriptionService: TranscriptionService {
         }
         
         return text
+    }
+
+    func consumeLastSegments() -> [WhisperTranscriptionSegment] {
+        let segments = lastSegments
+        lastSegments = []
+        return segments
     }
     
     private func readAudioSamples(_ url: URL) throws -> [Float] {

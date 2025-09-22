@@ -1,10 +1,22 @@
 import Foundation
+#if os(macOS) || os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
+import Darwin
+#endif
 #if canImport(whisper)
 import whisper
 #else
 #error("Unable to import whisper module. Please check your project configuration.")
 #endif
 import os
+
+
+struct WhisperTranscriptionSegment: Sendable {
+    let text: String
+    let start: TimeInterval
+    let end: TimeInterval
+    let speakerIdentifier: String?
+    let hasSpeakerTurnNext: Bool
+}
 
 
 // Meet Whisper C++ constraint: Don't access from more than one thread at a time.
@@ -66,6 +78,8 @@ actor WhisperContext {
         params.no_context = true
         params.single_segment = false
         params.temperature = 0.2
+        let shouldEnableTinydiarize = UserDefaults.standard.bool(forKey: SpeakerDiarizationDefaults.tinydiarizeEnabledKey)
+        params.tdrz_enable = shouldEnableTinydiarize
 
         whisper_reset_timings(context)
         
@@ -108,6 +122,48 @@ actor WhisperContext {
             transcription += String(cString: whisper_full_get_segment_text(context, i))
         }
         return transcription
+    }
+
+    func getSegments() -> [WhisperTranscriptionSegment] {
+        guard let context = context else { return [] }
+
+        let segmentCount = Int(whisper_full_n_segments(context))
+        guard segmentCount > 0 else { return [] }
+
+        var segments: [WhisperTranscriptionSegment] = []
+        segments.reserveCapacity(segmentCount)
+
+        for index in 0..<segmentCount {
+            let rawText = whisper_full_get_segment_text(context, Int32(index))
+            let text = String(cString: rawText).trimmingCharacters(in: .whitespacesAndNewlines)
+            let startValue = whisper_full_get_segment_t0(context, Int32(index))
+            let endValue = whisper_full_get_segment_t1(context, Int32(index))
+            let start = TimeInterval(Double(startValue) / 100.0)
+            let end = TimeInterval(Double(endValue) / 100.0)
+
+            var speakerIdentifier: String?
+            if let speakerFunction = WhisperContext.segmentSpeakerFunction,
+               let pointer = speakerFunction(context, Int32(index)) {
+                let value = String(cString: pointer)
+                if !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                   value.lowercased() != "unknown" {
+                    speakerIdentifier = value
+                }
+            }
+
+            let hasTurn = whisper_full_get_segment_speaker_turn_next(context, Int32(index))
+
+            let segment = WhisperTranscriptionSegment(
+                text: text,
+                start: start,
+                end: end,
+                speakerIdentifier: speakerIdentifier,
+                hasSpeakerTurnNext: hasTurn
+            )
+            segments.append(segment)
+        }
+
+        return segments
     }
 
     static func createContext(path: String) async throws -> WhisperContext {
@@ -158,6 +214,20 @@ actor WhisperContext {
     func setPrompt(_ prompt: String?) {
         self.prompt = prompt
     }
+}
+
+private extension WhisperContext {
+    typealias WhisperSegmentSpeakerFunction = @convention(c) (OpaquePointer?, Int32) -> UnsafePointer<CChar>?
+
+    static let segmentSpeakerFunction: WhisperSegmentSpeakerFunction? = {
+        #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
+        guard let handle = dlopen(nil, RTLD_LAZY) else { return nil }
+        guard let symbol = dlsym(handle, "whisper_full_get_segment_speaker") else { return nil }
+        return unsafeBitCast(symbol, to: WhisperSegmentSpeakerFunction.self)
+        #else
+        return nil
+        #endif
+    }()
 }
 
 fileprivate func cpuCount() -> Int {

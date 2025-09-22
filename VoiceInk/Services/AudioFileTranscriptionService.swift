@@ -13,6 +13,7 @@ class AudioTranscriptionService: ObservableObject {
     private let enhancementService: AIEnhancementService?
     private let whisperState: WhisperState
     private let logger = Logger(subsystem: "com.prakashjoshipax.voiceink", category: "AudioTranscriptionService")
+    private let speakerDiarizationService = SpeakerDiarizationService.shared
     
     // Transcription services
     private let localTranscriptionService: LocalTranscriptionService
@@ -47,10 +48,12 @@ class AudioTranscriptionService: ObservableObject {
             // Delegate transcription to appropriate service
             let transcriptionStart = Date()
             var text: String
-            
+            var rawSegments: [WhisperTranscriptionSegment] = []
+
             switch model.provider {
             case .local:
                 text = try await localTranscriptionService.transcribe(audioURL: url, model: model)
+                rawSegments = localTranscriptionService.consumeLastSegments()
             case .parakeet:
                 text = try await parakeetTranscriptionService.transcribe(audioURL: url, model: model)
             case .nativeApple:
@@ -68,11 +71,12 @@ class AudioTranscriptionService: ObservableObject {
             }
 
             // Apply word replacements if enabled
-            if UserDefaults.standard.bool(forKey: "IsWordReplacementEnabled") {
+            let isWordReplacementEnabled = UserDefaults.standard.bool(forKey: "IsWordReplacementEnabled")
+            if isWordReplacementEnabled {
                 text = WordReplacementService.shared.applyReplacements(to: text)
                 logger.notice("✅ Word replacements applied")
             }
-            
+
             // Get audio duration
             let audioAsset = AVURLAsset(url: url)
             let duration = CMTimeGetSeconds(try await audioAsset.load(.duration))
@@ -94,6 +98,23 @@ class AudioTranscriptionService: ObservableObject {
             }
             
             let permanentURLString = permanentURL.absoluteString
+
+            var diarizedSegments = await speakerDiarizationService.assignSpeakers(
+                rawSegments: rawSegments,
+                fullText: text,
+                totalDuration: duration,
+                audioURL: url
+            )
+
+            diarizedSegments = prepareSegments(
+                diarizedSegments,
+                applyWordReplacement: isWordReplacementEnabled,
+                derivedFromRawSegments: !rawSegments.isEmpty
+            )
+
+            if diarizedSegments.isEmpty, !text.isEmpty {
+                diarizedSegments = [SpeakerSegment(speaker: nil, start: 0, end: duration, text: text)]
+            }
             
             // Apply AI enhancement if enabled
             if let enhancementService = enhancementService,
@@ -115,6 +136,7 @@ class AudioTranscriptionService: ObservableObject {
                         aiRequestSystemMessage: enhancementService.lastSystemMessageSent,
                         aiRequestUserMessage: enhancementService.lastUserMessageSent
                     )
+                    attachSegments(diarizedSegments, to: newTranscription)
                     modelContext.insert(newTranscription)
                     do {
                         try modelContext.save()
@@ -143,6 +165,7 @@ class AudioTranscriptionService: ObservableObject {
                         promptName: nil,
                         transcriptionDuration: transcriptionDuration
                     )
+                    attachSegments(diarizedSegments, to: newTranscription)
                     modelContext.insert(newTranscription)
                     do {
                         try modelContext.save()
@@ -166,6 +189,7 @@ class AudioTranscriptionService: ObservableObject {
                     promptName: nil,
                     transcriptionDuration: transcriptionDuration
                 )
+                attachSegments(diarizedSegments, to: newTranscription)
                 modelContext.insert(newTranscription)
                 do {
                     try modelContext.save()
@@ -188,6 +212,37 @@ class AudioTranscriptionService: ObservableObject {
             currentError = .transcriptionFailed
             isTranscribing = false
             throw error
+        }
+    }
+
+    private func prepareSegments(_ segments: [SpeakerSegment], applyWordReplacement: Bool, derivedFromRawSegments: Bool) -> [SpeakerSegment] {
+        guard !segments.isEmpty else { return [] }
+        return segments.map { segment in
+            var normalizedText = segment.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            if applyWordReplacement && derivedFromRawSegments {
+                normalizedText = WordReplacementService.shared.applyReplacements(to: normalizedText)
+            }
+            return SpeakerSegment(
+                speaker: segment.speaker,
+                start: segment.start,
+                end: segment.end,
+                text: normalizedText
+            )
+        }
+    }
+
+    private func attachSegments(_ segments: [SpeakerSegment], to transcription: Transcription) {
+        guard !segments.isEmpty else { return }
+        transcription.segments.removeAll()
+        for segment in segments {
+            let modelSegment = TranscriptionSegment(
+                speaker: segment.speaker,
+                start: segment.start,
+                end: segment.end,
+                text: segment.text,
+                transcription: transcription
+            )
+            transcription.segments.append(modelSegment)
         }
     }
 }

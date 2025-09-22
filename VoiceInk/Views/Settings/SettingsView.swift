@@ -14,11 +14,14 @@ struct SettingsView: View {
     @StateObject private var deviceManager = AudioDeviceManager.shared
     @ObservedObject private var mediaController = MediaController.shared
     @ObservedObject private var playbackController = PlaybackController.shared
+    @ObservedObject private var speakerDiarizationService = SpeakerDiarizationService.shared
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = true
     @AppStorage("autoUpdateCheck") private var autoUpdateCheck = true
     @State private var showResetOnboardingAlert = false
     @State private var currentShortcut = KeyboardShortcuts.getShortcut(for: .toggleMiniRecorder)
     @State private var isCustomCancelEnabled = false
+    @State private var pyannoteAPIKey = SpeakerDiarizationService.shared.pyannoteAPIKey
+    @State private var deepgramAPIKey = SpeakerDiarizationService.shared.deepgramAPIKey
 
     
     var body: some View {
@@ -270,6 +273,75 @@ struct SettingsView: View {
                 }
 
                 SettingsSection(
+                    icon: "person.2.wave.2.fill",
+                    title: String(localized: "settings.diarization.title", defaultValue: "Speaker Diarization"),
+                    subtitle: String(localized: "settings.diarization.subtitle", defaultValue: "Choose how VoiceInk assigns speaker labels")
+                ) {
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack {
+                            Text(String(localized: "settings.diarization.modelLabel", defaultValue: "Diarization Model"))
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Picker("", selection: Binding(
+                                get: { speakerDiarizationService.selectedModel },
+                                set: { speakerDiarizationService.updateSelectedModel($0) }
+                            )) {
+                                ForEach(SpeakerDiarizationModel.allCases) { model in
+                                    Text(model.displayName).tag(model)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .labelsHidden()
+                            .frame(width: 220)
+                        }
+
+                        Text(speakerDiarizationService.selectedModel.description)
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+
+                        if speakerDiarizationService.selectedModel == .pyannote {
+                            VStack(alignment: .leading, spacing: 8) {
+                                SecureField(String(localized: "settings.diarization.pyannoteToken", defaultValue: "pyannote API Token"), text: $pyannoteAPIKey)
+                                    .textFieldStyle(.roundedBorder)
+                                    .onChange(of: pyannoteAPIKey) { _, newValue in
+                                        speakerDiarizationService.pyannoteAPIKey = newValue
+                                    }
+                                if pyannoteAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                    Text(String(localized: "settings.diarization.pyannoteMissing", defaultValue: "An active pyannote API token is required."))
+                                        .font(.system(size: 11))
+                                        .foregroundColor(.red)
+                                }
+                            }
+                        }
+
+                        if speakerDiarizationService.selectedModel == .deepgram {
+                            VStack(alignment: .leading, spacing: 8) {
+                                SecureField(String(localized: "settings.diarization.deepgramKey", defaultValue: "Deepgram API Key"), text: $deepgramAPIKey)
+                                    .textFieldStyle(.roundedBorder)
+                                    .onChange(of: deepgramAPIKey) { _, newValue in
+                                        speakerDiarizationService.deepgramAPIKey = newValue
+                                    }
+                                if deepgramAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                    Text(String(localized: "settings.diarization.deepgramMissing", defaultValue: "A Deepgram API key with diarization enabled is required."))
+                                        .font(.system(size: 11))
+                                        .foregroundColor(.red)
+                                }
+                            }
+                        }
+
+                        Text(String(localized: "settings.diarization.fallback", defaultValue: "If diarization data is missing, VoiceInk will generate fallback speaker labels automatically."))
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .onChange(of: speakerDiarizationService.selectedModel) { _, _ in
+                        pyannoteAPIKey = speakerDiarizationService.pyannoteAPIKey
+                        deepgramAPIKey = speakerDiarizationService.deepgramAPIKey
+                    }
+                }
+
+                SettingsSection(
                     icon: "speaker.wave.2.bubble.left.fill",
                     title: "Recording Feedback",
                     subtitle: "Customize app & system feedback"
@@ -512,6 +584,10 @@ struct SettingsView: View {
                 }
                 .buttonStyle(.plain)
             }
+        }
+        .onAppear {
+            pyannoteAPIKey = speakerDiarizationService.pyannoteAPIKey
+            deepgramAPIKey = speakerDiarizationService.deepgramAPIKey
         }
     }
 }

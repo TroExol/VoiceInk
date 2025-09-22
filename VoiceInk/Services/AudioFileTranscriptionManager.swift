@@ -16,6 +16,7 @@ class AudioTranscriptionManager: ObservableObject {
     private var currentTask: Task<Void, Error>?
     private let audioProcessor = AudioProcessor()
     private let logger = Logger(subsystem: "com.prakashjoshipax.voiceink", category: "AudioTranscriptionManager")
+    private let speakerDiarizationService = SpeakerDiarizationService.shared
     
     // Transcription services - will be initialized when needed
     private var localTranscriptionService: LocalTranscriptionService?
@@ -98,10 +99,12 @@ class AudioTranscriptionManager: ObservableObject {
                 processingPhase = .transcribing
                 let transcriptionStart = Date()
                 var text: String
-                
+                var rawSegments: [WhisperTranscriptionSegment] = []
+
                 switch currentModel.provider {
                 case .local:
                     text = try await localTranscriptionService!.transcribe(audioURL: permanentURL, model: currentModel)
+                    rawSegments = localTranscriptionService!.consumeLastSegments()
                 case .parakeet:
                     text = try await parakeetTranscriptionService!.transcribe(audioURL: permanentURL, model: currentModel)
                 case .nativeApple:
@@ -119,10 +122,28 @@ class AudioTranscriptionManager: ObservableObject {
                 }
 
                 // Apply word replacements if enabled
-                if UserDefaults.standard.bool(forKey: "IsWordReplacementEnabled") {
+                let isWordReplacementEnabled = UserDefaults.standard.bool(forKey: "IsWordReplacementEnabled")
+                if isWordReplacementEnabled {
                     text = WordReplacementService.shared.applyReplacements(to: text)
                 }
-                
+
+                var diarizedSegments = await speakerDiarizationService.assignSpeakers(
+                    rawSegments: rawSegments,
+                    fullText: text,
+                    totalDuration: duration,
+                    audioURL: permanentURL
+                )
+
+                diarizedSegments = prepareSegments(
+                    diarizedSegments,
+                    applyWordReplacement: isWordReplacementEnabled,
+                    derivedFromRawSegments: !rawSegments.isEmpty
+                )
+
+                if diarizedSegments.isEmpty, !text.isEmpty {
+                    diarizedSegments = [SpeakerSegment(speaker: nil, start: 0, end: duration, text: text)]
+                }
+
                 // Handle enhancement if enabled
                 if let enhancementService = whisperState.enhancementService,
                    enhancementService.isEnhancementEnabled,
@@ -144,6 +165,7 @@ class AudioTranscriptionManager: ObservableObject {
                             aiRequestSystemMessage: enhancementService.lastSystemMessageSent,
                             aiRequestUserMessage: enhancementService.lastUserMessageSent
                         )
+                        attachSegments(diarizedSegments, to: transcription)
                         modelContext.insert(transcription)
                         try modelContext.save()
                         NotificationCenter.default.post(name: .transcriptionCreated, object: transcription)
@@ -161,6 +183,7 @@ class AudioTranscriptionManager: ObservableObject {
                             promptName: nil,
                             transcriptionDuration: transcriptionDuration
                         )
+                        attachSegments(diarizedSegments, to: transcription)
                         modelContext.insert(transcription)
                         try modelContext.save()
                         NotificationCenter.default.post(name: .transcriptionCreated, object: transcription)
@@ -175,6 +198,7 @@ class AudioTranscriptionManager: ObservableObject {
                         promptName: nil,
                         transcriptionDuration: transcriptionDuration
                     )
+                    attachSegments(diarizedSegments, to: transcription)
                     modelContext.insert(transcription)
                     try modelContext.save()
                     NotificationCenter.default.post(name: .transcriptionCreated, object: transcription)
@@ -198,7 +222,38 @@ class AudioTranscriptionManager: ObservableObject {
     func cancelProcessing() {
         currentTask?.cancel()
     }
-    
+
+    private func prepareSegments(_ segments: [SpeakerSegment], applyWordReplacement: Bool, derivedFromRawSegments: Bool) -> [SpeakerSegment] {
+        guard !segments.isEmpty else { return [] }
+        return segments.map { segment in
+            var normalizedText = segment.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            if applyWordReplacement && derivedFromRawSegments {
+                normalizedText = WordReplacementService.shared.applyReplacements(to: normalizedText)
+            }
+            return SpeakerSegment(
+                speaker: segment.speaker,
+                start: segment.start,
+                end: segment.end,
+                text: normalizedText
+            )
+        }
+    }
+
+    private func attachSegments(_ segments: [SpeakerSegment], to transcription: Transcription) {
+        guard !segments.isEmpty else { return }
+        transcription.segments.removeAll()
+        for segment in segments {
+            let modelSegment = TranscriptionSegment(
+                speaker: segment.speaker,
+                start: segment.start,
+                end: segment.end,
+                text: segment.text,
+                transcription: transcription
+            )
+            transcription.segments.append(modelSegment)
+        }
+    }
+
     private func finishProcessing() {
         isProcessing = false
         processingPhase = .idle

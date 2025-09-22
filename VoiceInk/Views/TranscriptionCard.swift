@@ -5,10 +5,12 @@ struct TranscriptionCard: View {
     let transcription: Transcription
     let isExpanded: Bool
     let isSelected: Bool
+    let speakerFilter: SpeakerFilter
     let onDelete: () -> Void
     let onToggleSelection: () -> Void
     @State private var isAIRequestExpanded: Bool = false
-    
+    private let speakerPalette: [Color] = [.blue, .green, .orange, .purple, .pink, .teal, .indigo, .brown]
+
     var body: some View {
         HStack(spacing: 12) {
             // Selection checkbox in macOS style
@@ -36,22 +38,10 @@ struct TranscriptionCard: View {
                         .cornerRadius(6)
                 }
                 
-                // Original text section
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(transcription.text)
-                        .font(.system(size: 15, weight: .regular, design: .default))
-                        .lineLimit(isExpanded ? nil : 2)
-                        .lineSpacing(2)
-                    
-                    if isExpanded {
-                        HStack {
-                            Text("Original")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.secondary)
-                            Spacer()
-                            AnimatedCopyButton(textToCopy: transcription.text)
-                        }
-                    }
+                if shouldUseSegments {
+                    segmentListSection
+                } else {
+                    originalTextSection
                 }
                 
                 // Enhanced text section (only when expanded)
@@ -196,7 +186,7 @@ struct TranscriptionCard: View {
             }
         }
     }
-    
+
     private var hasMetadata: Bool {
         transcription.transcriptionModelName != nil ||
         transcription.aiEnhancementModelName != nil ||
@@ -204,7 +194,45 @@ struct TranscriptionCard: View {
         transcription.transcriptionDuration != nil ||
         transcription.enhancementDuration != nil
     }
-    
+
+    private var shouldUseSegments: Bool {
+        !transcription.segments.isEmpty
+    }
+
+    private var sortedSegments: [TranscriptionSegment] {
+        transcription.segments.sorted { $0.start < $1.start }
+    }
+
+    private var filteredSegments: [TranscriptionSegment] {
+        guard !sortedSegments.isEmpty else { return [] }
+        switch speakerFilter {
+        case .all:
+            return sortedSegments
+        case .unknown:
+            return sortedSegments.filter { segment in
+                segment.speaker?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true
+            }
+        case .named(let value):
+            return sortedSegments.filter { segment in
+                segment.speaker?.caseInsensitiveCompare(value) == .orderedSame
+            }
+        }
+    }
+
+    private var displaySegments: [TranscriptionSegment] {
+        let segments = filteredSegments
+        guard !isExpanded else { return segments }
+        return Array(segments.prefix(3))
+    }
+
+    private var hasAdditionalSegments: Bool {
+        !isExpanded && filteredSegments.count > displaySegments.count
+    }
+
+    private var combinedSegmentsText: String {
+        filteredSegments.map { $0.text }.joined(separator: "\n")
+    }
+
     private func formatTiming(_ duration: TimeInterval) -> String {
         if duration < 1 {
             return String(format: "%.0fms", duration * 1000)
@@ -232,5 +260,110 @@ struct TranscriptionCard: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(.secondary)
         }
+    }
+
+    private var originalTextSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(transcription.text)
+                .font(.system(size: 15, weight: .regular, design: .default))
+                .lineLimit(isExpanded ? nil : 2)
+                .lineSpacing(2)
+
+            if isExpanded {
+                HStack {
+                    Text("Original")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    AnimatedCopyButton(textToCopy: transcription.text)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var segmentListSection: some View {
+        if filteredSegments.isEmpty {
+            Text(String(localized: "history.filter.speakers.empty", defaultValue: "No utterances for the selected speaker"))
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(.secondary)
+                .padding(.vertical, 4)
+        } else {
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(displaySegments, id: \.id) { segment in
+                    segmentRow(for: segment)
+                }
+
+                if hasAdditionalSegments {
+                    Text(String(localized: "history.filter.speakers.expand", defaultValue: "Expand to view all segments"))
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                        .padding(.leading, 4)
+                }
+
+                if isExpanded {
+                    Divider()
+                        .padding(.vertical, 4)
+                    HStack {
+                        Text(String(localized: "history.segment.copyAll", defaultValue: "Copy combined text"))
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        AnimatedCopyButton(textToCopy: combinedSegmentsText)
+                    }
+                }
+            }
+        }
+    }
+
+    private func segmentRow(for segment: TranscriptionSegment) -> some View {
+        let baseColor = color(for: segment.speaker)
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(speakerDisplayName(for: segment))
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(baseColor)
+                Spacer()
+                Text(formatSegmentRange(start: segment.start, end: segment.end))
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.secondary)
+                AnimatedCopyButton(textToCopy: segment.text)
+            }
+
+            Text(segment.text)
+                .font(.system(size: 15, weight: .regular, design: .default))
+                .foregroundColor(.primary)
+                .lineLimit(isExpanded ? nil : 3)
+        }
+        .padding(12)
+        .background(baseColor.opacity(0.12))
+        .cornerRadius(10)
+    }
+
+    private func color(for speaker: String?) -> Color {
+        guard let name = speaker?.lowercased(), !name.isEmpty else {
+            return Color.gray
+        }
+        let hash = abs(name.hashValue)
+        return speakerPalette[hash % speakerPalette.count]
+    }
+
+    private func speakerDisplayName(for segment: TranscriptionSegment) -> String {
+        let value = segment.speaker?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if value.isEmpty {
+            return String(localized: "history.filter.speakers.unknown", defaultValue: "Unknown speaker")
+        }
+        return value
+    }
+
+    private func formatSegmentRange(start: TimeInterval, end: TimeInterval) -> String {
+        "\(formatTimestamp(start)) – \(formatTimestamp(end))"
+    }
+
+    private func formatTimestamp(_ value: TimeInterval) -> String {
+        let totalSeconds = max(0, Int(value.rounded()))
+        let minutes = totalSeconds / 60
+        let seconds = totalSeconds % 60
+        return String(format: "%02d:%02d", minutes, seconds)
     }
 }

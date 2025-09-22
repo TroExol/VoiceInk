@@ -10,6 +10,7 @@ struct TranscriptionHistoryView: View {
     @State private var showDeleteConfirmation = false
     @State private var isViewCurrentlyVisible = false
     @State private var showAnalysisView = false
+    @State private var selectedSpeaker: SpeakerFilter = .all
     
     private let exportService = VoiceInkCSVExportService()
     
@@ -17,10 +18,32 @@ struct TranscriptionHistoryView: View {
     @State private var displayedTranscriptions: [Transcription] = []
     @State private var isLoading = false
     @State private var hasMoreContent = true
-    
+
     // Cursor-based pagination - track the last timestamp
     @State private var lastTimestamp: Date?
     private let pageSize = 20
+    private var unknownSpeakerLabel: String { String(localized: "history.filter.speakers.unknown", defaultValue: "Unknown speaker") }
+    private var allSpeakersLabel: String { String(localized: "history.filter.speakers.all", defaultValue: "All speakers") }
+    private var emptyFilterLabel: String { String(localized: "history.filter.speakers.empty", defaultValue: "No utterances for the selected speaker") }
+    private var speakerFilterLabel: String { selectedSpeaker.displayName(unknownLabel: unknownSpeakerLabel, allLabel: allSpeakersLabel) }
+    private var availableSpeakers: [String] {
+        let names = displayedTranscriptions.flatMap { transcription in
+            transcription.segments.compactMap { segment -> String? in
+                guard let value = segment.speaker?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
+                    return nil
+                }
+                return value
+            }
+        }
+        return Array(Set(names)).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+    private var hasUnknownSpeakers: Bool {
+        displayedTranscriptions.contains { transcription in
+            transcription.segments.contains { segment in
+                segment.speaker?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true
+            }
+        }
+    }
     
     @Query(Self.createLatestTranscriptionIndicatorDescriptor()) private var latestTranscriptionIndicator: [Transcription]
     
@@ -79,6 +102,7 @@ struct TranscriptionHistoryView: View {
                                         transcription: transcription,
                                         isExpanded: expandedTranscription == transcription,
                                         isSelected: selectedTranscriptions.contains(transcription),
+                                        speakerFilter: selectedSpeaker,
                                         onDelete: { deleteTranscription(transcription) },
                                         onToggleSelection: { toggleSelection(transcription) }
                                     )
@@ -157,6 +181,12 @@ struct TranscriptionHistoryView: View {
                 await loadInitialContent()
             }
         }
+        .onChange(of: selectedSpeaker) { _, _ in
+            Task {
+                await resetPagination()
+                await loadInitialContent()
+            }
+        }
         // Improved change detection for new transcriptions
         .onChange(of: latestTranscriptionIndicator.first?.id) { oldId, newId in
             guard isViewCurrentlyVisible else { return } // Only proceed if the view is visible
@@ -220,12 +250,71 @@ struct TranscriptionHistoryView: View {
     }
 
     private var searchBar: some View {
-        HStack {
-            Image(systemName: "magnifyingglass")
-                .foregroundColor(.secondary)
-            TextField("Search transcriptions", text: $searchText)
-                .font(.system(size: 16, weight: .regular, design: .default))
-                .textFieldStyle(PlainTextFieldStyle())
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.secondary)
+                TextField("Search transcriptions", text: $searchText)
+                    .font(.system(size: 16, weight: .regular, design: .default))
+                    .textFieldStyle(PlainTextFieldStyle())
+            }
+
+            HStack(spacing: 8) {
+                Image(systemName: "person.2.fill")
+                    .foregroundColor(.secondary)
+
+                Menu {
+                    Button {
+                        selectedSpeaker = .all
+                    } label: {
+                        filterMenuLabel(for: .all)
+                    }
+
+                    if hasUnknownSpeakers {
+                        Button {
+                            selectedSpeaker = .unknown
+                        } label: {
+                            filterMenuLabel(for: .unknown)
+                        }
+                    }
+
+                    ForEach(availableSpeakers, id: \.self) { speaker in
+                        let filter = SpeakerFilter.named(speaker)
+                        Button {
+                            selectedSpeaker = filter
+                        } label: {
+                            filterMenuLabel(for: filter)
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Text(speakerFilterLabel)
+                            .font(.system(size: 13, weight: .medium))
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(selectedSpeaker == .all ? Color(NSColor.controlBackgroundColor) : Color.accentColor.opacity(0.18))
+                    )
+                    .foregroundColor(selectedSpeaker == .all ? .primary : .accentColor)
+                }
+                .menuStyle(.borderlessButton)
+
+                if selectedSpeaker != .all {
+                    Button(String(localized: "history.filter.speakers.clear", defaultValue: "Clear")) {
+                        selectedSpeaker = .all
+                    }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.accentColor)
+                }
+
+                Spacer()
+            }
         }
         .padding(12)
         .background(CardBackground(isSelected: false))
@@ -308,48 +397,69 @@ struct TranscriptionHistoryView: View {
                 .shadow(color: Color.black.opacity(0.1), radius: 3, y: -2)
         )
     }
-    
+
+    private func fetchFilteredTranscriptions(after timestamp: Date?) throws -> ([Transcription], Date?, Bool) {
+        var collected: [Transcription] = []
+        var cursor = timestamp
+        var reachedEnd = false
+
+        while collected.count < pageSize {
+            let descriptor = cursorQueryDescriptor(after: cursor)
+            let page = try modelContext.fetch(descriptor)
+
+            if page.isEmpty {
+                reachedEnd = true
+                break
+            }
+
+            cursor = page.last?.timestamp
+            collected.append(contentsOf: applySpeakerFilter(to: page))
+
+            if page.count < pageSize {
+                reachedEnd = true
+                break
+            }
+        }
+
+        return (collected, cursor, reachedEnd)
+    }
+
     private func loadInitialContent() async {
         isLoading = true
         defer { isLoading = false }
-        
+
         do {
             // Reset cursor
             lastTimestamp = nil
-            
-            // Fetch initial page without a cursor
-            let items = try modelContext.fetch(cursorQueryDescriptor())
-            
+
+            let (items, cursor, reachedEnd) = try fetchFilteredTranscriptions(after: nil)
+
             await MainActor.run {
                 displayedTranscriptions = items
-                // Update cursor to the timestamp of the last item
-                lastTimestamp = items.last?.timestamp
-                // If we got fewer items than the page size, there are no more items
-                hasMoreContent = items.count == pageSize
+                lastTimestamp = cursor
+                hasMoreContent = !reachedEnd
             }
         } catch {
             print("Error loading transcriptions: \(error)")
         }
     }
-    
+
     private func loadMoreContent() {
         guard !isLoading, hasMoreContent, let lastTimestamp = lastTimestamp else { return }
         
         Task {
             isLoading = true
             defer { isLoading = false }
-            
+
             do {
-                // Fetch next page using the cursor
-                let newItems = try modelContext.fetch(cursorQueryDescriptor(after: lastTimestamp))
-                
+                let (newItems, cursor, reachedEnd) = try fetchFilteredTranscriptions(after: lastTimestamp)
+
                 await MainActor.run {
-                    // Append new items to the displayed list
                     displayedTranscriptions.append(contentsOf: newItems)
-                    // Update cursor to the timestamp of the last new item
-                    self.lastTimestamp = newItems.last?.timestamp
-                    // If we got fewer items than the page size, there are no more items
-                    hasMoreContent = newItems.count == pageSize
+                    if let cursor {
+                        self.lastTimestamp = cursor
+                    }
+                    hasMoreContent = !reachedEnd
                 }
             } catch {
                 print("Error loading more transcriptions: \(error)")
@@ -400,14 +510,43 @@ struct TranscriptionHistoryView: View {
                 expandedTranscription = nil
             }
         }
-        
+
         // Clear selection
         selectedTranscriptions.removeAll()
-        
+
         // Save changes and refresh
         Task {
             try? await modelContext.save()
             await loadInitialContent()
+        }
+    }
+
+    private func applySpeakerFilter(to transcriptions: [Transcription]) -> [Transcription] {
+        switch selectedSpeaker {
+        case .all:
+            return transcriptions
+        case .unknown:
+            return transcriptions.filter { transcription in
+                transcription.segments.contains { segment in
+                    segment.speaker?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true
+                }
+            }
+        case .named(let value):
+            return transcriptions.filter { transcription in
+                transcription.segments.contains { segment in
+                    segment.speaker?.caseInsensitiveCompare(value) == .orderedSame
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func filterMenuLabel(for filter: SpeakerFilter) -> some View {
+        let label = filter.displayName(unknownLabel: unknownSpeakerLabel, allLabel: allSpeakersLabel)
+        if selectedSpeaker == filter {
+            Label(label, systemImage: "checkmark")
+        } else {
+            Text(label)
         }
     }
     
