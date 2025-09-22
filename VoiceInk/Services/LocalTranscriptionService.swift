@@ -3,8 +3,9 @@ import AVFoundation
 import os
 
 class LocalTranscriptionService: TranscriptionService {
-    
+
     private var whisperContext: WhisperContext?
+    private var lastSegments: [WhisperSegment] = []
     private let logger = Logger(subsystem: "com.prakashjoshipax.voiceink", category: "LocalTranscriptionService")
     private let modelsDirectory: URL
     private weak var whisperState: WhisperState?
@@ -70,15 +71,16 @@ class LocalTranscriptionService: TranscriptionService {
         }
         
         var text = await whisperContext.getTranscription()
+        lastSegments = await whisperContext.getSegments()
 
         logger.notice("✅ Local transcription completed successfully.")
-        
+
         // Only release resources if we created a new context (not using the shared one)
         if await whisperState?.whisperContext !== whisperContext {
             await whisperContext.releaseResources()
             self.whisperContext = nil
         }
-        
+
         return text
     }
     
@@ -92,4 +94,12 @@ class LocalTranscriptionService: TranscriptionService {
         }
         return floats
     }
-} 
+}
+
+extension LocalTranscriptionService: TranscriptionSegmentProviding {
+    func consumeLatestSegments() -> [WhisperSegment] {
+        let segments = lastSegments
+        lastSegments = []
+        return segments
+    }
+}

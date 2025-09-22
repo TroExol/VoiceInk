@@ -14,6 +14,7 @@ struct SettingsView: View {
     @StateObject private var deviceManager = AudioDeviceManager.shared
     @ObservedObject private var mediaController = MediaController.shared
     @ObservedObject private var playbackController = PlaybackController.shared
+    @ObservedObject private var diarizationService = SpeakerDiarizationService.shared
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = true
     @AppStorage("autoUpdateCheck") private var autoUpdateCheck = true
     @State private var showResetOnboardingAlert = false
@@ -89,6 +90,41 @@ struct SettingsView: View {
                             .pickerStyle(.menu)
                             .labelsHidden()
                             .frame(width: 180)
+                        }
+                    }
+                }
+
+                SettingsSection(
+                    icon: "person.2.wave.2",
+                    title: "Speaker Diarization",
+                    subtitle: "Choose how speakers are detected"
+                ) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack {
+                            Text("Model")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Picker("", selection: $diarizationService.selectedModel) {
+                                ForEach(SpeakerDiarizationService.Model.allCases) { model in
+                                    Text(model.displayName).tag(model)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .labelsHidden()
+                            .frame(width: 220)
+                        }
+
+                        Text(diarizationService.selectedModel.description)
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        if diarizationService.selectedModel == .whisper {
+                            Text("If the local speaker model is unavailable, VoiceInk will still segment the text and assign fallback labels.")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                     }
                 }

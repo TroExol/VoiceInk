@@ -2,6 +2,12 @@ import SwiftUI
 import SwiftData
 import Foundation
 
+private enum SpeakerFilter: Equatable {
+    case all
+    case unlabeled
+    case speaker(String)
+}
+
 struct TranscriptionHistoryView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var searchText = ""
@@ -10,6 +16,7 @@ struct TranscriptionHistoryView: View {
     @State private var showDeleteConfirmation = false
     @State private var isViewCurrentlyVisible = false
     @State private var showAnalysisView = false
+    @State private var speakerFilter: SpeakerFilter = .all
     
     private let exportService = VoiceInkCSVExportService()
     
@@ -68,13 +75,13 @@ struct TranscriptionHistoryView: View {
             VStack(spacing: 0) {
                 searchBar
                 
-                if displayedTranscriptions.isEmpty && !isLoading {
+                if filteredTranscriptions.isEmpty && !isLoading {
                     emptyStateView
                 } else {
                     ScrollViewReader { proxy in
                         ScrollView {
                             LazyVStack(spacing: 10) {
-                                ForEach(displayedTranscriptions) { transcription in
+                                ForEach(filteredTranscriptions) { transcription in
                                     TranscriptionCard(
                                         transcription: transcription,
                                         isExpanded: expandedTranscription == transcription,
@@ -157,6 +164,9 @@ struct TranscriptionHistoryView: View {
                 await loadInitialContent()
             }
         }
+        .onChange(of: speakerFilter) { _, _ in
+            selectedTranscriptions = Set(selectedTranscriptions.filter { matchesSpeakerFilter($0) })
+        }
         // Improved change detection for new transcriptions
         .onChange(of: latestTranscriptionIndicator.first?.id) { oldId, newId in
             guard isViewCurrentlyVisible else { return } // Only proceed if the view is visible
@@ -220,12 +230,43 @@ struct TranscriptionHistoryView: View {
     }
 
     private var searchBar: some View {
-        HStack {
-            Image(systemName: "magnifyingglass")
-                .foregroundColor(.secondary)
-            TextField("Search transcriptions", text: $searchText)
-                .font(.system(size: 16, weight: .regular, design: .default))
-                .textFieldStyle(PlainTextFieldStyle())
+        HStack(spacing: 12) {
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.secondary)
+                TextField("Search transcriptions", text: $searchText)
+                    .font(.system(size: 16, weight: .regular, design: .default))
+                    .textFieldStyle(PlainTextFieldStyle())
+            }
+
+            if hasSpeakerFilters {
+                Divider()
+                    .frame(height: 24)
+
+                Menu {
+                    Button("All Speakers") { speakerFilter = .all }
+
+                    if hasUnlabeledSegments {
+                        Button("Unlabeled") { speakerFilter = .unlabeled }
+                    }
+
+                    ForEach(availableSpeakers, id: \.self) { speaker in
+                        Button(speaker) { speakerFilter = .speaker(speaker) }
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "person.2.fill")
+                        Text(speakerFilterLabel)
+                            .font(.system(size: 13, weight: .medium))
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(isSpeakerFilterActive ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.1))
+                    .foregroundColor(isSpeakerFilterActive ? .accentColor : .secondary)
+                    .cornerRadius(8)
+                }
+                .menuStyle(.borderlessButton)
+            }
         }
         .padding(12)
         .background(CardBackground(isSelected: false))
@@ -287,7 +328,7 @@ struct TranscriptionHistoryView: View {
             }
             .buttonStyle(.borderless)
             
-            if selectedTranscriptions.count < displayedTranscriptions.count {
+            if selectedTranscriptions.count < filteredTranscriptions.count {
                 Button("Select All") {
                     Task {
                         await selectAllTranscriptions()
@@ -442,7 +483,7 @@ struct TranscriptionHistoryView: View {
         do {
             // Create a descriptor without pagination limits to get all IDs
             var allDescriptor = FetchDescriptor<Transcription>()
-            
+
             // Apply search filter if needed
             if !searchText.isEmpty {
                 allDescriptor.predicate = #Predicate<Transcription> { transcription in
@@ -450,30 +491,71 @@ struct TranscriptionHistoryView: View {
                     (transcription.enhancedText?.localizedStandardContains(searchText) ?? false)
                 }
             }
-            
-            // For better performance, only fetch the IDs
-            allDescriptor.propertiesToFetch = [\.id]
-            
-            // Fetch all matching transcriptions
             let allTranscriptions = try modelContext.fetch(allDescriptor)
-            
-            // Create a set of all visible transcriptions for quick lookup
-            let visibleIds = Set(displayedTranscriptions.map { $0.id })
-            
-            // Add all transcriptions to the selection
+            let filtered = allTranscriptions.filter { matchesSpeakerFilter($0) }
+
             await MainActor.run {
-                // First add all visible transcriptions directly
-                selectedTranscriptions = Set(displayedTranscriptions)
-                
-                // Then add any non-visible transcriptions by ID
-                for transcription in allTranscriptions {
-                    if !visibleIds.contains(transcription.id) {
-                        selectedTranscriptions.insert(transcription)
-                    }
-                }
+                selectedTranscriptions = Set(filtered)
             }
         } catch {
             print("Error selecting all transcriptions: \(error)")
+        }
+    }
+}
+
+private extension TranscriptionHistoryView {
+    var filteredTranscriptions: [Transcription] {
+        displayedTranscriptions.filter { matchesSpeakerFilter($0) }
+    }
+
+    var availableSpeakers: [String] {
+        let names = displayedTranscriptions.flatMap { transcription in
+            transcription.segments.compactMap { segment -> String? in
+                guard let value = segment.speaker?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
+                    return nil
+                }
+                return value
+            }
+        }
+        return Array(Set(names)).sorted()
+    }
+
+    var hasUnlabeledSegments: Bool {
+        displayedTranscriptions.contains { transcription in
+            transcription.segments.isEmpty || transcription.segments.contains { !$0.hasSpeaker }
+        }
+    }
+
+    var hasSpeakerFilters: Bool {
+        !availableSpeakers.isEmpty || hasUnlabeledSegments
+    }
+
+    var speakerFilterLabel: String {
+        switch speakerFilter {
+        case .all:
+            return "All speakers"
+        case .unlabeled:
+            return "Unlabeled"
+        case .speaker(let value):
+            return value
+        }
+    }
+
+    var isSpeakerFilterActive: Bool {
+        speakerFilter != .all
+    }
+
+    func matchesSpeakerFilter(_ transcription: Transcription) -> Bool {
+        switch speakerFilter {
+        case .all:
+            return true
+        case .unlabeled:
+            if transcription.segments.isEmpty { return true }
+            return transcription.segments.contains { !$0.hasSpeaker }
+        case .speaker(let value):
+            return transcription.segments.contains { segment in
+                segment.speaker?.trimmingCharacters(in: .whitespacesAndNewlines) == value
+            }
         }
     }
 }

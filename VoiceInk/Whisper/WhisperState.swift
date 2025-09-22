@@ -60,6 +60,7 @@ class WhisperState: NSObject, ObservableObject {
     private lazy var cloudTranscriptionService = CloudTranscriptionService()
     private lazy var nativeAppleTranscriptionService = NativeAppleTranscriptionService()
     private lazy var parakeetTranscriptionService = ParakeetTranscriptionService(customModelsDirectory: parakeetModelsDirectory)
+    private let speakerDiarizationService = SpeakerDiarizationService.shared
     
     private var modelUrl: URL? {
         let possibleURLs = [
@@ -268,11 +269,12 @@ class WhisperState: NSObject, ObservableObject {
 
             let transcriptionStart = Date()
             var text = try await transcriptionService.transcribe(audioURL: url, model: model)
+            let baseSegments = (transcriptionService as? TranscriptionSegmentProviding)?.consumeLatestSegments() ?? []
             text = WhisperHallucinationFilter.filter(text)
             let transcriptionDuration = Date().timeIntervalSince(transcriptionStart)
-            
+
             if await checkCancellationAndCleanup() { return }
-            
+
             text = text.trimmingCharacters(in: .whitespacesAndNewlines)
 
             if UserDefaults.standard.object(forKey: "IsTextFormattingEnabled") as? Bool ?? true {
@@ -287,7 +289,14 @@ class WhisperState: NSObject, ObservableObject {
             let actualDuration = (try? CMTimeGetSeconds(await audioAsset.load(.duration))) ?? 0.0
             var promptDetectionResult: PromptDetectionService.PromptDetectionResult? = nil
             let originalText = text
-            
+            let diarizedSegments = await speakerDiarizationService.diarize(
+                baseSegments: baseSegments,
+                transcriptionText: originalText,
+                audioURL: url
+            )
+
+            if await checkCancellationAndCleanup() { return }
+
             if let enhancementService = enhancementService, enhancementService.isConfigured {
                 let detectionResult = promptDetectionService.analyzeText(text, with: enhancementService)
                 promptDetectionResult = detectionResult
@@ -316,6 +325,7 @@ class WhisperState: NSObject, ObservableObject {
                         aiRequestSystemMessage: enhancementService.lastSystemMessageSent,
                         aiRequestUserMessage: enhancementService.lastUserMessageSent
                     )
+                    attachSegments(diarizedSegments, to: newTranscription)
                     modelContext.insert(newTranscription)
                     try? modelContext.save()
                     NotificationCenter.default.post(name: .transcriptionCreated, object: newTranscription)
@@ -337,10 +347,11 @@ class WhisperState: NSObject, ObservableObject {
                         promptName: nil,
                         transcriptionDuration: transcriptionDuration
                     )
+                    attachSegments(diarizedSegments, to: newTranscription)
                     modelContext.insert(newTranscription)
                     try? modelContext.save()
                     NotificationCenter.default.post(name: .transcriptionCreated, object: newTranscription)
-                    
+
                     await MainActor.run {
                         NotificationManager.shared.showNotification(
                             title: String(localized: "notifications.aiEnhancementFailed"),
@@ -357,6 +368,7 @@ class WhisperState: NSObject, ObservableObject {
                     promptName: nil,
                     transcriptionDuration: transcriptionDuration
                 )
+                attachSegments(diarizedSegments, to: newTranscription)
                 modelContext.insert(newTranscription)
                 try? modelContext.save()
                 NotificationCenter.default.post(name: .transcriptionCreated, object: newTranscription)
@@ -444,5 +456,30 @@ class WhisperState: NSObject, ObservableObject {
     
     private func cleanupAndDismiss() async {
         await dismissMiniRecorder()
+    }
+
+    private func attachSegments(_ segments: [SpeakerDiarizationService.SpeakerSegment], to transcription: Transcription) {
+        transcription.segments.removeAll()
+        guard !segments.isEmpty else { return }
+
+        let shouldApplyWordReplacement = UserDefaults.standard.bool(forKey: "IsWordReplacementEnabled")
+
+        for segment in segments {
+            var text = segment.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty else { continue }
+
+            if shouldApplyWordReplacement {
+                text = WordReplacementService.shared.applyReplacements(to: text)
+            }
+
+            let model = TranscriptionSegment(
+                text: text,
+                start: segment.start,
+                end: segment.end,
+                speaker: segment.speaker,
+                transcription: transcription
+            )
+            transcription.segments.append(model)
+        }
     }
 }

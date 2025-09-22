@@ -38,22 +38,45 @@ struct TranscriptionCard: View {
                 
                 // Original text section
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(transcription.text)
-                        .font(.system(size: 15, weight: .regular, design: .default))
-                        .lineLimit(isExpanded ? nil : 2)
-                        .lineSpacing(2)
-                    
-                    if isExpanded {
-                        HStack {
-                            Text("Original")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.secondary)
-                            Spacer()
-                            AnimatedCopyButton(textToCopy: transcription.text)
+                    if transcription.orderedSegments.isEmpty {
+                        Text(transcription.text)
+                            .font(.system(size: 15, weight: .regular, design: .default))
+                            .lineLimit(isExpanded ? nil : 2)
+                            .lineSpacing(2)
+
+                        if isExpanded {
+                            HStack {
+                                Text("Original")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                AnimatedCopyButton(textToCopy: transcription.text)
+                            }
+                        }
+                    } else {
+                        if isExpanded {
+                            HStack {
+                                Text("Conversation")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                AnimatedCopyButton(textToCopy: transcription.text)
+                            }
+
+                            VStack(alignment: .leading, spacing: 10) {
+                                ForEach(Array(transcription.orderedSegments.enumerated()), id: \.element.id) { index, segment in
+                                    segmentView(for: segment, index: index)
+                                }
+                            }
+                        } else {
+                            Text(transcription.text)
+                                .font(.system(size: 15, weight: .regular, design: .default))
+                                .lineLimit(2)
+                                .lineSpacing(2)
                         }
                     }
                 }
-                
+
                 // Enhanced text section (only when expanded)
                 if isExpanded, let enhancedText = transcription.enhancedText {
                     Divider()
@@ -232,5 +255,79 @@ struct TranscriptionCard: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(.secondary)
         }
+    }
+
+    private func segmentView(for segment: TranscriptionSegment, index: Int) -> some View {
+        let color = colorForSpeaker(segment.speaker)
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                speakerBadge(for: segment, color: color, index: index)
+                Spacer()
+                Text(formatSegmentTiming(start: segment.start, end: segment.end))
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.secondary)
+            }
+
+            Text(segment.text)
+                .font(.system(size: 15, weight: .regular, design: .default))
+                .lineSpacing(2)
+
+            HStack {
+                Spacer()
+                AnimatedCopyButton(textToCopy: segment.text)
+            }
+        }
+        .padding(12)
+        .background(color.opacity(0.12))
+        .cornerRadius(10)
+    }
+
+    private func speakerBadge(for segment: TranscriptionSegment, color: Color, index: Int) -> some View {
+        let label = speakerLabel(for: segment, fallbackIndex: index)
+        return Text(label)
+            .font(.system(size: 13, weight: .semibold))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(color.opacity(0.2))
+            .foregroundColor(color)
+            .cornerRadius(8)
+    }
+
+    private func speakerLabel(for segment: TranscriptionSegment, fallbackIndex: Int) -> String {
+        if let value = segment.speaker?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty {
+            return value
+        }
+        return "Speaker \(fallbackIndex + 1)"
+    }
+
+    private func colorForSpeaker(_ speaker: String?) -> Color {
+        let palette: [Color] = [.blue, .green, .orange, .purple, .pink, .teal, .brown, .indigo]
+        guard let name = speaker?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty else {
+            return Color.gray
+        }
+
+        let hash = name.unicodeScalars.reduce(0) { accumulator, scalar in
+            (accumulator &* 31) &+ Int(scalar.value)
+        }
+        let paletteIndex = abs(hash) % palette.count
+        return palette[paletteIndex]
+    }
+
+    private func formatSegmentTiming(start: TimeInterval, end: TimeInterval) -> String {
+        if start <= 0 && end <= 0 {
+            return "--"
+        }
+
+        let startText = formatTimestamp(start)
+        let endText = formatTimestamp(end)
+        return "\(startText) – \(endText)"
+    }
+
+    private func formatTimestamp(_ interval: TimeInterval) -> String {
+        guard interval > 0 else { return "00:00" }
+        let totalSeconds = Int(interval.rounded())
+        let minutes = totalSeconds / 60
+        let seconds = totalSeconds % 60
+        return String(format: "%02d:%02d", minutes, seconds)
     }
 }

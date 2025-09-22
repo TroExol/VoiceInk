@@ -1,10 +1,46 @@
 import Foundation
+#if canImport(Darwin)
+import Darwin
+#endif
 #if canImport(whisper)
 import whisper
 #else
 #error("Unable to import whisper module. Please check your project configuration.")
 #endif
 import os
+
+struct WhisperSegment {
+    let index: Int
+    let text: String
+    let start: TimeInterval
+    let end: TimeInterval
+    let speaker: String?
+
+    init(index: Int, text: String, start: TimeInterval, end: TimeInterval, speaker: String?) {
+        self.index = index
+        self.text = text
+        self.start = start
+        self.end = end
+        self.speaker = speaker
+    }
+}
+
+private typealias WhisperSegmentSpeakerFunction = @convention(c) (OpaquePointer?, Int32) -> UnsafePointer<CChar>?
+
+#if canImport(Darwin)
+private let whisperSegmentSpeakerFunction: WhisperSegmentSpeakerFunction? = {
+    guard let symbol = dlsym(RTLD_DEFAULT, "whisper_full_get_segment_speaker") else {
+        return nil
+    }
+    return unsafeBitCast(symbol, to: WhisperSegmentSpeakerFunction.self)
+}()
+#else
+private let whisperSegmentSpeakerFunction: WhisperSegmentSpeakerFunction? = nil
+#endif
+
+private func convertWhisperTimestamp(_ value: Int64) -> TimeInterval {
+    Double(value) / 100.0
+}
 
 
 // Meet Whisper C++ constraint: Don't access from more than one thread at a time.
@@ -108,6 +144,52 @@ actor WhisperContext {
             transcription += String(cString: whisper_full_get_segment_text(context, i))
         }
         return transcription
+    }
+
+    func getSegments() -> [WhisperSegment] {
+        guard let context = context else { return [] }
+
+        let numberOfSegments = Int(whisper_full_n_segments(context))
+        var segments: [WhisperSegment] = []
+        segments.reserveCapacity(numberOfSegments)
+
+        for i in 0..<numberOfSegments {
+            let index = Int32(i)
+            let rawText = String(cString: whisper_full_get_segment_text(context, index))
+            let text = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
+            let start = convertWhisperTimestamp(whisper_full_get_segment_t0(context, index))
+            let end = convertWhisperTimestamp(whisper_full_get_segment_t1(context, index))
+            let speaker = fetchSpeakerLabel(context: context, segmentIndex: index)
+
+            guard !text.isEmpty else { continue }
+
+            let segment = WhisperSegment(
+                index: i,
+                text: text,
+                start: start,
+                end: end,
+                speaker: speaker
+            )
+            segments.append(segment)
+        }
+
+        return segments
+    }
+
+    private func fetchSpeakerLabel(context: OpaquePointer, segmentIndex: Int32) -> String? {
+        guard let speakerFunction = whisperSegmentSpeakerFunction else {
+            return nil
+        }
+
+        guard let pointer = speakerFunction(context, segmentIndex) else {
+            return nil
+        }
+
+        guard let label = String(validatingUTF8: pointer), !label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return nil
+        }
+
+        return label
     }
 
     static func createContext(path: String) async throws -> WhisperContext {
