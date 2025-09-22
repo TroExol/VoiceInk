@@ -38,6 +38,9 @@ extension WhisperState {
         if isMiniRecorderVisible {
             if recordingState == .recording {
                 await toggleRecord()
+            } else if recordingState == .transcribing || recordingState == .enhancing {
+                SoundManager.shared.playStartSound()
+                await toggleRecord()
             } else {
                 await cancelRecording()
             }
