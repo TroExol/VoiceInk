@@ -6,6 +6,14 @@ extension UserDefaults {
         static let audioInputMode = "audioInputMode"
         static let selectedAudioDeviceUID = "selectedAudioDeviceUID"
         static let prioritizedDevices = "prioritizedDevices"
+        static let systemAudioCaptureEnabled = "systemAudioCaptureEnabled"
+        static let systemAudioLoopbackDeviceUID = "systemAudioLoopbackDeviceUID"
+        static let systemAudioMicrophoneLevel = "systemAudioMicrophoneLevel"
+        static let systemAudioSystemLevel = "systemAudioSystemLevel"
+        static let systemAudioOutputMode = "systemAudioOutputMode"
+        static let systemAudioChannelCount = "systemAudioChannelCount"
+        static let systemAudioFadeDuration = "systemAudioFadeDuration"
+        static let systemAudioCaptureVolume = "systemAudioCaptureVolume"
     }
     
     // MARK: - AI Provider API Key

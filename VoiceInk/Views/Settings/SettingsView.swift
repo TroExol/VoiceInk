@@ -301,6 +301,14 @@ struct SettingsView: View {
                     }
                 }
 
+                SettingsSection(
+                    icon: "waveform.circle",
+                    title: "System Audio Capture",
+                    subtitle: "Mix system playback into VoiceInk recordings"
+                ) {
+                    SystemAudioCaptureSettingsView()
+                }
+
                 ExperimentalFeaturesSection()
 
                 SettingsSection(
