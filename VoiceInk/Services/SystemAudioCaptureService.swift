@@ -354,7 +354,7 @@ final class SystemAudioCaptureService: ObservableObject {
         }
     }
 
-    private func mixToStereo(floatData: UnsafePointer<UnsafeMutablePointer<Float>>, systemChannels: Int, microphoneChannels: Int, frameLength: Int, systemLevel: Float, microphoneLevel: Float, outputData: UnsafeMutablePointer<UnsafeMutablePointer<Float>>) {
+    private func mixToStereo(floatData: UnsafePointer<UnsafeMutablePointer<Float>>, systemChannels: Int, microphoneChannels: Int, frameLength: Int, systemLevel: Float, microphoneLevel: Float, outputData: UnsafePointer<UnsafeMutablePointer<Float>>) {
         let left = outputData[0]
         let right = outputData[1]
 
@@ -391,7 +391,7 @@ final class SystemAudioCaptureService: ObservableObject {
         }
     }
 
-    private func mixToMultichannel(floatData: UnsafePointer<UnsafeMutablePointer<Float>>, totalChannels: Int, systemChannels: Int, microphoneChannels: Int, frameLength: Int, systemLevel: Float, microphoneLevel: Float, outputData: UnsafeMutablePointer<UnsafeMutablePointer<Float>>) {
+    private func mixToMultichannel(floatData: UnsafePointer<UnsafeMutablePointer<Float>>, totalChannels: Int, systemChannels: Int, microphoneChannels: Int, frameLength: Int, systemLevel: Float, microphoneLevel: Float, outputData: UnsafePointer<UnsafeMutablePointer<Float>>) {
         for channel in 0..<totalChannels {
             let isSystemChannel = channel < systemChannels
             let gain = isSystemChannel ? systemLevel : microphoneLevel

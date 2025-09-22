@@ -381,7 +381,7 @@ class AudioDeviceManager: ObservableObject {
         }
     }
     
-    private func getDeviceUID(deviceID: AudioDeviceID) -> String? {
+    func getDeviceUID(deviceID: AudioDeviceID) -> String? {
         let uid: CFString? = getDeviceProperty(deviceID: deviceID,
                                              selector: kAudioDevicePropertyDeviceUID)
         return uid as String?
