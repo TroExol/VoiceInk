@@ -89,7 +89,8 @@ actor WhisperContext {
         if isVADEnabled, let vadModelPath = self.vadModelPath {
             params.vad = true
             vadModelPathCString = Array(vadModelPath.utf8CString)
-            if let pointer: UnsafePointer<CChar> = vadModelPathCString?.withUnsafeBufferPointer({ $0.baseAddress }) {
+            if let vadModelPathCString,
+               let pointer = vadModelPathCString.withUnsafeBufferPointer({ $0.baseAddress }) {
                 params.vad_model_path = pointer
 
                 var vadParams = whisper_vad_default_params()
