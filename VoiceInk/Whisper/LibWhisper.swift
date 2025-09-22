@@ -26,6 +26,7 @@ actor WhisperContext {
     private var prompt: String?
     private var promptCString: [CChar]?
     private var vadModelPath: String?
+    private var vadModelPathCString: [CChar]?
     private let logger = Logger(subsystem: "com.prakashjoshipax.voiceink", category: "WhisperContext")
 
     private init() {}
@@ -87,8 +88,17 @@ actor WhisperContext {
         let isVADEnabled = UserDefaults.standard.object(forKey: "IsVADEnabled") as? Bool ?? true
         if isVADEnabled, let vadModelPath = self.vadModelPath {
             params.vad = true
-            params.vad_model_path = (vadModelPath as NSString).utf8String
-            
+            vadModelPathCString = Array(vadModelPath.utf8CString)
+            if let pointer = vadModelPathCString?.withUnsafeBufferPointer({ buffer -> UnsafePointer<CChar>? in
+                buffer.baseAddress
+            }) {
+                params.vad_model_path = pointer
+            } else {
+                logger.error("Failed to create C string for VAD model path")
+                params.vad = false
+                vadModelPathCString = nil
+            }
+
             var vadParams = whisper_vad_default_params()
             vadParams.threshold = 0.50
             vadParams.min_speech_duration_ms = 250
@@ -99,6 +109,7 @@ actor WhisperContext {
             params.vad_params = vadParams
         } else {
             params.vad = false
+            vadModelPathCString = nil
         }
         
         var success = true
