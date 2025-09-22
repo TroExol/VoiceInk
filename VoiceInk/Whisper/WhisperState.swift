@@ -49,6 +49,8 @@ class WhisperState: NSObject, ObservableObject {
     let recorder = Recorder()
     var recordedFile: URL? = nil
     let whisperPrompt = WhisperPrompt()
+    fileprivate var currentRecordingSessionID: UUID?
+    fileprivate var activeSessionID: UUID?
     
     // Prompt detection service for trigger word handling
     private let promptDetectionService = PromptDetectionService()
@@ -130,33 +132,62 @@ class WhisperState: NSObject, ObservableObject {
     
     func toggleRecord() async {
         if recordingState == .recording {
+            guard let sessionID = currentRecordingSessionID else {
+                logger.error("❌ No active session ID when stopping recording")
+                await recorder.stopRecording()
+                if let recordedFile {
+                    if !shouldCancelRecording {
+                        let processingURL = recordedFile
+                        let fallbackSession = UUID()
+                        activeSessionID = fallbackSession
+                        Task { [weak self] in
+                            await self?.transcribeAudio(processingURL, sessionID: fallbackSession)
+                        }
+                    } else {
+                        recordingState = .idle
+                        await cleanupModelResources()
+                    }
+                } else {
+                    recordingState = .idle
+                }
+                return
+            }
+
+            currentRecordingSessionID = nil
+
             await recorder.stopRecording()
             if let recordedFile {
                 if !shouldCancelRecording {
-                    await transcribeAudio(recordedFile)
-                } else {
-                    await MainActor.run {
-                        recordingState = .idle
+                    activeSessionID = activeSessionID ?? sessionID
+                    if activeSessionID == sessionID {
+                        recordingState = .transcribing
                     }
+                    let processingURL = recordedFile
+                    Task { [weak self] in
+                        await self?.transcribeAudio(processingURL, sessionID: sessionID)
+                    }
+                } else {
+                    recordingState = .idle
                     await cleanupModelResources()
                 }
             } else {
                 logger.error("❌ No recorded file found after stopping recording")
-                await MainActor.run {
-                    recordingState = .idle
-                }
+                recordingState = .idle
             }
         } else {
             guard currentTranscriptionModel != nil else {
-                await MainActor.run {
-                    NotificationManager.shared.showNotification(
-                        title: String(localized: "notifications.noAIModelSelected"),
-                        type: .error
-                    )
-                }
+                NotificationManager.shared.showNotification(
+                    title: String(localized: "notifications.noAIModelSelected"),
+                    type: .error
+                )
                 return
             }
+
             shouldCancelRecording = false
+            let sessionID = UUID()
+            currentRecordingSessionID = sessionID
+            activeSessionID = sessionID
+
             requestRecordPermission { [self] granted in
                 if granted {
                     Task {
@@ -165,15 +196,13 @@ class WhisperState: NSObject, ObservableObject {
                             let fileName = "\(UUID().uuidString).wav"
                             let permanentURL = self.recordingsDirectory.appendingPathComponent(fileName)
                             self.recordedFile = permanentURL
-        
+
                             try await self.recorder.startRecording(toOutputFile: permanentURL)
-                            
-                            await MainActor.run {
-                                self.recordingState = .recording
-                            }
-                            
+
+                            self.recordingState = .recording
+
                             await ActiveWindowService.shared.applyConfigurationForCurrentApp()
-         
+
                             // Only load model if it's a local model and not already loaded
                             if let model = self.currentTranscriptionModel, model.provider == .local {
                                 if let localWhisperModel = self.availableModels.first(where: { $0.name == model.name }),
@@ -184,15 +213,15 @@ class WhisperState: NSObject, ObservableObject {
                                         self.logger.error("❌ Model loading failed: \(error.localizedDescription)")
                                     }
                                 }
-                                    } else if let model = self.currentTranscriptionModel, model.provider == .parakeet {
-            try? await parakeetTranscriptionService.loadModel()
+                            } else if let model = self.currentTranscriptionModel, model.provider == .parakeet {
+                                try? await parakeetTranscriptionService.loadModel()
                             }
-        
+
                             if let enhancementService = self.enhancementService,
                                enhancementService.useScreenCaptureContext {
                                 await enhancementService.captureScreenContext()
                             }
-        
+
                         } catch {
                             self.logger.error("❌ Failed to start recording: \(error.localizedDescription)")
                             await NotificationManager.shared.showNotification(
@@ -202,10 +231,18 @@ class WhisperState: NSObject, ObservableObject {
                             await self.dismissMiniRecorder()
                             // Do not remove the file on a failed start, to preserve all recordings.
                             self.recordedFile = nil
+                            self.currentRecordingSessionID = nil
+                            if self.activeSessionID == sessionID {
+                                self.activeSessionID = nil
+                            }
                         }
                     }
                 } else {
                     logger.error("❌ Recording permission denied.")
+                    self.currentRecordingSessionID = nil
+                    if self.activeSessionID == sessionID {
+                        self.activeSessionID = nil
+                    }
                 }
             }
         }
@@ -215,34 +252,37 @@ class WhisperState: NSObject, ObservableObject {
         response(true)
     }
     
-    private func transcribeAudio(_ url: URL) async {
+    private func transcribeAudio(_ url: URL, sessionID: UUID) async {
         if shouldCancelRecording {
-            await MainActor.run {
+            if activeSessionID == sessionID {
                 recordingState = .idle
             }
             await cleanupModelResources()
             return
         }
-        
-        await MainActor.run {
+
+        if activeSessionID == sessionID {
             recordingState = .transcribing
         }
-        
+
         // Play stop sound when transcription starts with a small delay
-        Task {
+        Task { [weak self] in
+            guard let self = self else { return }
             let isSystemMuteEnabled = UserDefaults.standard.bool(forKey: "isSystemMuteEnabled")
             if isSystemMuteEnabled {
                 try? await Task.sleep(nanoseconds: 200_000_000) // 200 milliseconds delay
             }
             await MainActor.run {
-                SoundManager.shared.playStopSound()
+                if self.activeSessionID == sessionID {
+                    SoundManager.shared.playStopSound()
+                }
             }
         }
-        
+
         defer {
             if shouldCancelRecording {
                 Task {
-                    await cleanupModelResources()
+                    await self.cleanupModelResources()
                 }
             }
         }
@@ -271,7 +311,7 @@ class WhisperState: NSObject, ObservableObject {
             text = WhisperHallucinationFilter.filter(text)
             let transcriptionDuration = Date().timeIntervalSince(transcriptionStart)
             
-            if await checkCancellationAndCleanup() { return }
+            if await checkCancellationAndCleanup(for: sessionID) { return }
             
             text = text.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -298,9 +338,11 @@ class WhisperState: NSObject, ObservableObject {
                enhancementService.isEnhancementEnabled,
                enhancementService.isConfigured {
                 do {
-                    if await checkCancellationAndCleanup() { return }
+                    if await checkCancellationAndCleanup(for: sessionID) { return }
 
-                    await MainActor.run { self.recordingState = .enhancing }
+                    if self.activeSessionID == sessionID {
+                        self.recordingState = .enhancing
+                    }
                     let textForAI = promptDetectionResult?.processedText ?? text
                     let (enhancedText, enhancementDuration, promptName) = try await enhancementService.enhance(textForAI)
                     let newTranscription = Transcription(
@@ -367,7 +409,7 @@ class WhisperState: NSObject, ObservableObject {
                 text += " "
             }
 
-            if await checkCancellationAndCleanup() { return }
+            if await checkCancellationAndCleanup(for: sessionID) { return }
 
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                 CursorPaster.pasteAtCursor(text)
@@ -387,7 +429,7 @@ class WhisperState: NSObject, ObservableObject {
                 await promptDetectionService.restoreOriginalSettings(result, to: enhancementService)
             }
             
-            await self.dismissMiniRecorder()
+            await self.dismissMiniRecorder(for: sessionID)
             
         } catch {
             do {
@@ -426,7 +468,7 @@ class WhisperState: NSObject, ObservableObject {
                 )
             }
             
-            await self.dismissMiniRecorder()
+            await self.dismissMiniRecorder(for: sessionID)
         }
     }
 
@@ -434,9 +476,9 @@ class WhisperState: NSObject, ObservableObject {
         return enhancementService
     }
     
-    private func checkCancellationAndCleanup() async -> Bool {
+    private func checkCancellationAndCleanup(for sessionID: UUID) async -> Bool {
         if shouldCancelRecording {
-            await dismissMiniRecorder()
+            await dismissMiniRecorder(for: sessionID)
             return true
         }
         return false
