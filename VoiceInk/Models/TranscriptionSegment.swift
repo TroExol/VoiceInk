@@ -10,7 +10,7 @@ final class TranscriptionSegment {
     var text: String
     var speakerIndex: Int
     var isSpeakerDerived: Bool
-    @Relationship(inverse: \Transcription.segments) var transcription: Transcription?
+    var transcription: Transcription?
 
     init(speaker: String, start: TimeInterval, end: TimeInterval, text: String, speakerIndex: Int, isSpeakerDerived: Bool, transcription: Transcription? = nil) {
         self.id = UUID()
