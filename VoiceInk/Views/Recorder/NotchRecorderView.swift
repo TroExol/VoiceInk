@@ -26,9 +26,9 @@ struct NotchRecorderView: View {
             if screen.safeAreaInsets.left > 0 {
                 return screen.safeAreaInsets.left * 2
             }
-            return 200
+            return 50
         }
-        return 200
+        return 50
     }
     
     private var leftSection: some View {

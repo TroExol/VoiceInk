@@ -25,7 +25,7 @@ class NotchRecorderPanel: KeyablePanel {
             }
             
             // Get actual notch width from safe area insets
-            let baseNotchWidth: CGFloat = safeAreaInsets.left > 0 ? safeAreaInsets.left * 2 : 200
+            let baseNotchWidth: CGFloat = safeAreaInsets.left > 0 ? safeAreaInsets.left * 2 : 50
             
             // Calculate total width including controls and padding
             // 16pt padding on each side + space for controls
@@ -35,7 +35,7 @@ class NotchRecorderPanel: KeyablePanel {
             
             return (totalWidth, notchHeight)
         }
-        return (280, 24)  // Increased fallback width
+        return (130, 24)  // Increased fallback width
     }
     
     init(contentRect: NSRect) {
@@ -82,7 +82,7 @@ class NotchRecorderPanel: KeyablePanel {
     
     static func calculateWindowMetrics() -> (frame: NSRect, notchWidth: CGFloat, notchHeight: CGFloat) {
         guard let screen = NSScreen.main else {
-            return (NSRect(x: 0, y: 0, width: 280, height: 24), 280, 24)
+            return (NSRect(x: 0, y: 0, width: 130, height: 24), 130, 24)
         }
         
         let safeAreaInsets = screen.safeAreaInsets
@@ -98,7 +98,7 @@ class NotchRecorderPanel: KeyablePanel {
         }
         
         // Calculate exact notch width
-        let baseNotchWidth: CGFloat = safeAreaInsets.left > 0 ? safeAreaInsets.left * 2 : 200
+        let baseNotchWidth: CGFloat = safeAreaInsets.left > 0 ? safeAreaInsets.left * 2 : 50
         
         // Calculate total width including controls and padding
         let controlsWidth: CGFloat = 64 // Space for buttons on each side (increased width)
